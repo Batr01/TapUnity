@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<linker>
+  <!-- IL2CPP: не вырезать SignalR JSON-протокол и зависимости (иначе HubProtocolResolver → Sequence contains no matching element). -->
+  <assembly fullname="Assembly-CSharp" preserve="all" />
+  <assembly fullname="Microsoft.AspNetCore.SignalR.Client" preserve="all" />
+  <assembly fullname="Microsoft.AspNetCore.SignalR.Client.Core" preserve="all" />
+  <assembly fullname="Microsoft.AspNetCore.SignalR.Common" preserve="all" />
+  <assembly fullname="Microsoft.AspNetCore.SignalR.Protocols.Json" preserve="all" />
+  <assembly fullname="Microsoft.AspNetCore.Connections.Abstractions" preserve="all" />
+  <assembly fullname="Microsoft.AspNetCore.Http.Connections.Client" preserve="all" />
+  <assembly fullname="Microsoft.AspNetCore.Http.Connections.Common" preserve="all" />
+  <assembly fullname="System.IO.Pipelines" preserve="all" />
+  <assembly fullname="System.Text.Json" preserve="all" />
+  <assembly fullname="System.Text.Encodings.Web" preserve="all" />
+</linker>

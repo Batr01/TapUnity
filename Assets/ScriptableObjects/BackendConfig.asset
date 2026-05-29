@@ -1,0 +1,18 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5d3095d0df5fe4a468c29a06b0335de1, type: 3}
+  m_Name: BackendConfig
+  m_EditorClassIdentifier: Assembly-CSharp::TapBrawl.Network.BackendConfig
+  developmentBaseUrl: http://192.168.0.104:5088
+  productionBaseUrl: https://api.tapbrawl.com
+  googleWebClientId: 107796233967-o6jogsu2s02pqu7ghhgcofr1992vla0a.apps.googleusercontent.com
+  googleIosClientId: 
