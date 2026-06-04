@@ -17,60 +17,32 @@ MonoBehaviour:
   minLifetime: 1.93
   maxLifetime: 2.2
   weights:
-  - 70
+  - 60
+  - 20
   - 10
-  - 10
-  - 10
+  - 15
   margin: 0.08
   phantomBlinkInterval: 0.46
   normalIdleAnim:
     frames:
-    - {fileID: 8798767030202379498, guid: d9a777567a96a4332bb90fe67ab08fd2, type: 3}
-    - {fileID: -3920764797712718030, guid: d9a777567a96a4332bb90fe67ab08fd2, type: 3}
-    - {fileID: 9040052600003026643, guid: d9a777567a96a4332bb90fe67ab08fd2, type: 3}
-    - {fileID: -2965413099975709522, guid: d9a777567a96a4332bb90fe67ab08fd2, type: 3}
-    - {fileID: -585819883829014592, guid: d9a777567a96a4332bb90fe67ab08fd2, type: 3}
-    - {fileID: 956491102840007702, guid: d9a777567a96a4332bb90fe67ab08fd2, type: 3}
-    - {fileID: 5106420436577659686, guid: d9a777567a96a4332bb90fe67ab08fd2, type: 3}
-    - {fileID: 7188003201003021959, guid: d9a777567a96a4332bb90fe67ab08fd2, type: 3}
+    - {fileID: 21300000, guid: 2e2f83f4b6e8d480ab6731798ffd9c30, type: 3}
     fps: 12
-    scale: 1
+    scale: 3
   goldIdleAnim:
     frames:
-    - {fileID: 6630772051720121306, guid: 3e63b2fd9759d4337a09e63ce94c3bb3, type: 3}
-    - {fileID: -8597593112274500334, guid: 3e63b2fd9759d4337a09e63ce94c3bb3, type: 3}
-    - {fileID: 8095982207661661100, guid: 3e63b2fd9759d4337a09e63ce94c3bb3, type: 3}
-    - {fileID: 1411922403193320846, guid: 3e63b2fd9759d4337a09e63ce94c3bb3, type: 3}
-    - {fileID: -4663525526451816839, guid: 3e63b2fd9759d4337a09e63ce94c3bb3, type: 3}
-    - {fileID: -2895481210899036795, guid: 3e63b2fd9759d4337a09e63ce94c3bb3, type: 3}
-    - {fileID: -2822961797349835921, guid: 3e63b2fd9759d4337a09e63ce94c3bb3, type: 3}
-    - {fileID: -5831635011422435247, guid: 3e63b2fd9759d4337a09e63ce94c3bb3, type: 3}
+    - {fileID: 21300000, guid: 512c83b63c7e04cd4b86bc747b85ee39, type: 3}
     fps: 12
-    scale: 1
+    scale: 2
   bombIdleAnim:
     frames:
-    - {fileID: -3663057948561956047, guid: 3400bcad5a5dd4cb598c057c2a5bb7e5, type: 3}
-    - {fileID: -668439159949706296, guid: 3400bcad5a5dd4cb598c057c2a5bb7e5, type: 3}
-    - {fileID: 4201740289004523597, guid: 3400bcad5a5dd4cb598c057c2a5bb7e5, type: 3}
-    - {fileID: 4842544902133202696, guid: 3400bcad5a5dd4cb598c057c2a5bb7e5, type: 3}
-    - {fileID: 2728488457115982949, guid: 3400bcad5a5dd4cb598c057c2a5bb7e5, type: 3}
-    - {fileID: 3706717425726942839, guid: 3400bcad5a5dd4cb598c057c2a5bb7e5, type: 3}
-    - {fileID: -7125015428221902378, guid: 3400bcad5a5dd4cb598c057c2a5bb7e5, type: 3}
-    - {fileID: -21727812337901644, guid: 3400bcad5a5dd4cb598c057c2a5bb7e5, type: 3}
+    - {fileID: 21300000, guid: e9f3ca9fb7c8a496cb61f40364fa7aee, type: 3}
     fps: 14
-    scale: 1
+    scale: 2
   phantomIdleAnim:
     frames:
-    - {fileID: 4621274339053136308, guid: e7f021f55053749a992ecbd7464ade15, type: 3}
-    - {fileID: -7996420118087357695, guid: e7f021f55053749a992ecbd7464ade15, type: 3}
-    - {fileID: 8373805098846452769, guid: e7f021f55053749a992ecbd7464ade15, type: 3}
-    - {fileID: 867628417669504100, guid: e7f021f55053749a992ecbd7464ade15, type: 3}
-    - {fileID: -3199690438763246834, guid: e7f021f55053749a992ecbd7464ade15, type: 3}
-    - {fileID: -262254159594015650, guid: e7f021f55053749a992ecbd7464ade15, type: 3}
-    - {fileID: -6641283610552979617, guid: e7f021f55053749a992ecbd7464ade15, type: 3}
-    - {fileID: 4714475983315119219, guid: e7f021f55053749a992ecbd7464ade15, type: 3}
+    - {fileID: 21300000, guid: 7bfadc849de524686ba26bb38daeb92b, type: 3}
     fps: 10
-    scale: 1
+    scale: 2
   enableIdlePulse: 1
   idlePulseAmplitude: 0.025
   idlePulseFrequency: 1.35
@@ -95,17 +67,17 @@ MonoBehaviour:
     - {fileID: 21300000, guid: 4e3a498f3433a494b8570cd0da22576b, type: 3}
     - {fileID: 21300000, guid: b75b3ba3066ee494094d8df84167b45f, type: 3}
     fps: 20
-    scale: 1.35
+    scale: 1
   goldHitAnim:
     frames:
-    - {fileID: -3684387038728692129, guid: 55dcae305fca043fc834e3445155bbe7, type: 3}
+    - {fileID: 21300000, guid: 512c83b63c7e04cd4b86bc747b85ee39, type: 3}
     fps: 20
-    scale: 1.4
+    scale: 1
   phantomHitAnim:
     frames:
-    - {fileID: 1034560861927655565, guid: abbdbea57b7df46eea06eccfff07c5d7, type: 3}
+    - {fileID: 21300000, guid: 7bfadc849de524686ba26bb38daeb92b, type: 3}
     fps: 20
-    scale: 1.3
+    scale: 1
   perfectHitAnim:
     frames:
     - {fileID: -1698452478527534980, guid: 59f914df5498c41299b5966f9b1a8db0, type: 3}
@@ -118,12 +90,12 @@ MonoBehaviour:
     scale: 1.45
   bombTapAnim:
     frames:
-    - {fileID: 3194708134611698956, guid: 79e7bc1a2696740b899b34d9342ec624, type: 3}
+    - {fileID: 21300000, guid: e9f3ca9fb7c8a496cb61f40364fa7aee, type: 3}
     fps: 18
     scale: 4
   phantomMissAnim:
     frames:
-    - {fileID: 8570552954931113355, guid: d85eff5166e3f49799afbe6ec6c4def9, type: 3}
+    - {fileID: 21300000, guid: 7bfadc849de524686ba26bb38daeb92b, type: 3}
     fps: 14
     scale: 0.9
   tapPopLifetimeSec: 0.34

@@ -35,6 +35,8 @@ namespace TapBrawl.UI
 
         private void Awake()
         {
+            ApplyModalStyle();
+
             if (backdropCloseButton != null)
                 backdropCloseButton.onClick.AddListener(Close);
             if (cancelButton != null)
@@ -42,6 +44,21 @@ namespace TapBrawl.UI
 
             if (modalRoot != null && !modalRoot.activeSelf)
                 modalRoot.SetActive(false);
+        }
+
+        private void ApplyModalStyle()
+        {
+            if (backdropCloseButton != null)
+            {
+                UiModalStyle.ApplyBackdrop(backdropCloseButton.GetComponent<Image>());
+                backdropCloseButton.transition = Selectable.Transition.None;
+            }
+
+            if (modalRoot == null)
+                return;
+
+            var panel = modalRoot.transform.Find("Panel");
+            UiModalStyle.ApplyPanel(panel != null ? panel.GetComponent<Image>() : null);
         }
 
         private void OnDestroy()

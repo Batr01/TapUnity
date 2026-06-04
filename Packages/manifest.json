@@ -1,7 +1,8 @@
 {
   "dependencies": {
-    "com.lupidan.apple-signin-unity": "https://github.com/lupidan/apple-signin-unity.git?path=/Source",
     "com.github-glitchenzo.nugetforunity": "https://github.com/GlitchEnzo/NuGetForUnity.git?path=/src/NuGetForUnity",
+    "com.lupidan.apple-signin-unity": "https://github.com/lupidan/apple-signin-unity.git?path=/Source",
+    "com.unity.ai.assistant": "2.10.0-pre.1",
     "com.unity.ai.navigation": "2.0.12",
     "com.unity.collab-proxy": "2.12.4",
     "com.unity.ide.rider": "3.0.39",

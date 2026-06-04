@@ -16,6 +16,8 @@ namespace TapBrawl.UI
         [SerializeField] private SkillCatalog? skillCatalog;
 
         [Header("Навигация")]
+        [SerializeField] private LobbyModalsHost? lobbyModals;
+        [SerializeField] private UiPanelToggle? panelToggle;
         [SerializeField] private string skillsSceneName = "Skills";
         [SerializeField] private Button? backButton;
 
@@ -32,16 +34,19 @@ namespace TapBrawl.UI
         private void Awake()
         {
             if (backButton != null)
-                backButton.onClick.AddListener(OpenSkillsScene);
+            {
+                UiModalStyle.PrepareBackButton(backButton);
+                backButton.onClick.AddListener(ClosePanel);
+            }
         }
 
         private void OnDestroy()
         {
             if (backButton != null)
-                backButton.onClick.RemoveListener(OpenSkillsScene);
+                backButton.onClick.RemoveListener(ClosePanel);
         }
 
-        private void Start()
+        private void OnEnable()
         {
             var skillId = ResolveSkillIdFromPending();
             RenderSkill(skillId);
@@ -130,7 +135,25 @@ namespace TapBrawl.UI
             skillIconImage.sprite = null;
         }
 
-        public void OpenSkillsScene()
+        private void ClosePanel()
+        {
+            if (panelToggle != null)
+            {
+                panelToggle.Hide();
+                return;
+            }
+
+            var modals = lobbyModals != null ? lobbyModals : LobbyModalsHost.Instance;
+            if (modals != null)
+            {
+                modals.CloseSkillDetails();
+                return;
+            }
+
+            OpenSkillsSceneLegacy();
+        }
+
+        private void OpenSkillsSceneLegacy()
         {
             if (!string.IsNullOrEmpty(skillsSceneName))
                 SceneManager.LoadScene(skillsSceneName, LoadSceneMode.Single);

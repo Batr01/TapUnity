@@ -20,6 +20,7 @@ namespace TapBrawl.UI
         [SerializeField] private string authSceneName = "Auth";
         [SerializeField] private string lobbySceneName = "Lobby";
         [SerializeField] private string skillsSceneName = "Skills";
+        [SerializeField] private LobbyModalsHost? lobbyModals;
         [SerializeField] private Button? logoutButton;
         [SerializeField] private Text? usernameText;
         [SerializeField] private Text? coinsText;
@@ -160,6 +161,18 @@ namespace TapBrawl.UI
         }
 
         public void OpenSkillsScene()
+        {
+            var modals = lobbyModals != null ? lobbyModals : LobbyModalsHost.Instance;
+            if (modals != null)
+            {
+                modals.OpenSkills();
+                return;
+            }
+
+            OpenSkillsSceneLegacy();
+        }
+
+        private void OpenSkillsSceneLegacy()
         {
             StopLobbyMusic();
             if (!string.IsNullOrEmpty(skillsSceneName))

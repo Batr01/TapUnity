@@ -65,16 +65,32 @@ namespace TapBrawl.Network
 #endif
         }
 
+        public static bool TrySetString(string key, string value)
+        {
+            try
+            {
+#if UNITY_ANDROID && !UNITY_EDITOR
+                using var bridge = new AndroidJavaClass(JavaBridgeClass);
+                return bridge.CallStatic<bool>("setString", key, value);
+#elif UNITY_IOS && !UNITY_EDITOR
+                _TapSecureStorageSet(key, value);
+                return true;
+#else
+                SecureStorageFallback.SetString(key, value);
+                return true;
+#endif
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"SecureStorage.TrySetString failed for key={key}: {ex.Message}");
+                return false;
+            }
+        }
+
         public static void SetString(string key, string value)
         {
-#if UNITY_ANDROID && !UNITY_EDITOR
-            using var bridge = new AndroidJavaClass(JavaBridgeClass);
-            bridge.CallStatic("setString", key, value);
-#elif UNITY_IOS && !UNITY_EDITOR
-            _TapSecureStorageSet(key, value);
-#else
-            SecureStorageFallback.SetString(key, value);
-#endif
+            if (!TrySetString(key, value))
+                Debug.LogWarning($"SecureStorage.SetString failed for key={key}");
         }
 
         public static void DeleteKey(string key)

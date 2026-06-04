@@ -12,9 +12,27 @@ namespace TapBrawl.UI
         [SerializeField]
         private GameObject profilePanelRoot = null!;
 
+        [SerializeField]
+        private float openAnimDuration = UiModalSlideAnimator.DefaultDuration;
+
+        private void Awake()
+        {
+            if (profilePanelRoot == null)
+                return;
+
+            var sync = profilePanelRoot.GetComponent<ProfileModalLayoutSync>();
+            if (sync == null)
+                sync = profilePanelRoot.AddComponent<ProfileModalLayoutSync>();
+            sync.Apply();
+        }
+
         /// <summary>Открыть панель.</summary>
         public void Show()
         {
+            var host = LobbyModalsHost.Instance;
+            host?.CloseShop();
+            host?.CloseSettings();
+            host?.CloseAllSkillModals();
             SetVisible(true);
         }
 
@@ -40,7 +58,16 @@ namespace TapBrawl.UI
                 return;
             }
 
-            profilePanelRoot.SetActive(visible);
+            if (visible)
+            {
+                profilePanelRoot.transform.SetAsLastSibling();
+                profilePanelRoot.SetActive(true);
+                UiModalSlideAnimator.Play(this, profilePanelRoot.transform, openAnimDuration);
+            }
+            else
+            {
+                profilePanelRoot.SetActive(false);
+            }
         }
     }
 }

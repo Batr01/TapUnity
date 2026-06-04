@@ -24,8 +24,9 @@ namespace TapBrawl.UI
         [SerializeField] private SkillLoadoutSlotView[] loadoutSlots = new SkillLoadoutSlotView[0];
         [SerializeField] private Button? saveLoadoutButton;
         [Header("Навигация")]
+        [SerializeField] private LobbyModalsHost? lobbyModals;
         [SerializeField] private SkillsSceneNavigationController? navigationController;
-        [SerializeField] private string skillDetailsSceneName = "SkillDetails";
+        [SerializeField] private string skillDetailsSceneName = "Details";
         [Header("Статус")]
         [SerializeField] private Text? statusText;
 
@@ -219,6 +220,13 @@ namespace TapBrawl.UI
             if (!SkillBalance.IsKnownSkillId(skillId))
             {
                 SetStatus($"Неизвестный SkillId: {skillId}");
+                return;
+            }
+
+            var modals = lobbyModals != null ? lobbyModals : LobbyModalsHost.Instance;
+            if (modals != null)
+            {
+                modals.OpenSkillDetails(skillId);
                 return;
             }
 

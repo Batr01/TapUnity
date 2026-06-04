@@ -491,14 +491,16 @@ MonoBehaviour:
   bubbleHitAudioSource: {fileID: 0}
   bubbleHitVolume: 1
   bubbleBombVolume: 1
+  chainLightningHitClip: {fileID: 0}
+  chainLightningHitVolume: 1
   gameplayMusicSource: {fileID: 0}
   gameplayBackgroundMusic: {fileID: 0}
   gameplayMusicVolume: 0.45
   showScoreDeltaPopups: 1
   scorePopupParentOverride: {fileID: 0}
-  scorePopupLifetimeSec: 0.85
+  scorePopupLifetimeSec: 0.95
   scorePopupRisePixels: 76
-  scorePopupFontSize: 36
+  scorePopupFontSize: 70
   scorePopupPositiveColor: {r: 0.35, g: 1, b: 0.55, a: 1}
   scorePopupNegativeColor: {r: 1, g: 0.38, b: 0.4, a: 1}
 --- !u!4 &467624121
@@ -1012,6 +1014,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TapBrawl.UI.GameplaySkillBarController
   match: {fileID: 467624120}
+  skillCatalog: {fileID: 11400000, guid: b2c3d4e5f607894a1b2c3d4e5f607891, type: 2}
   skillSlot0Button: {fileID: 884001044}
   skillSlot0StatusText: {fileID: 884001053}
   skillSlot0IconImage: {fileID: 884001043}
@@ -1021,7 +1024,6 @@ MonoBehaviour:
   skillSlot2Button: {fileID: 884003044}
   skillSlot2StatusText: {fileID: 884003053}
   skillSlot2IconImage: {fileID: 884003043}
-  skillCatalog: {fileID: 11400000, guid: b2c3d4e5f607894a1b2c3d4e5f607891, type: 2}
   giantCirclesButton: {fileID: 884001044}
   giantCirclesStatusText: {fileID: 884001053}
   redDeceptionButton: {fileID: 884002044}

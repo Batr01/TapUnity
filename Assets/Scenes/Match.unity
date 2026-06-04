@@ -269,9 +269,9 @@ MonoBehaviour:
   gameplayMusicVolume: 0.45
   showScoreDeltaPopups: 1
   scorePopupParentOverride: {fileID: 0}
-  scorePopupLifetimeSec: 0.85
+  scorePopupLifetimeSec: 0.95
   scorePopupRisePixels: 76
-  scorePopupFontSize: 60
+  scorePopupFontSize: 66
   scorePopupPositiveColor: {r: 0.35, g: 1, b: 0.55, a: 1}
   scorePopupNegativeColor: {r: 1, g: 0.38, b: 0.4, a: 1}
 --- !u!114 &25018677
@@ -1964,7 +1964,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 0, g: 1, b: 0.8239019, a: 0.36862746}
+  m_Color: {r: 0.04205233, g: 0.254717, b: 0.21674116, a: 1}
   m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1

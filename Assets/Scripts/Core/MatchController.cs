@@ -68,7 +68,7 @@ namespace TapBrawl.Core
         [SerializeField] private RectTransform? scorePopupParentOverride;
         [SerializeField] private float scorePopupLifetimeSec = 0.85f;
         [SerializeField] private float scorePopupRisePixels = 76f;
-        [SerializeField] private int scorePopupFontSize = 36;
+        [SerializeField] private int scorePopupFontSize = 55;
         [SerializeField] private Color scorePopupPositiveColor = new(0.35f, 1f, 0.55f, 1f);
         [SerializeField] private Color scorePopupNegativeColor = new(1f, 0.38f, 0.4f, 1f);
 
