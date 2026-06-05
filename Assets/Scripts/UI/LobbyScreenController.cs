@@ -26,6 +26,7 @@ namespace TapBrawl.UI
         [SerializeField] private Text? coinsText;
         [SerializeField] private Text? rankText;
         [SerializeField] private Text? tierText;
+        [SerializeField] private LoadingOverlay? loadingOverlay;
 
         [Header("Фоновая музыка")]
         [Tooltip("Источник для фона лобби. Если пусто — будет создан на этом объекте.")]
@@ -58,21 +59,38 @@ namespace TapBrawl.UI
 
             ApplyProfileUi(s.Player);
             if (backendConfig != null)
-            {
-                _ = RefreshProfileFromServerAsync();
-                _ = PrefetchSkillsAsync(s);
-            }
+                _ = LoadLobbyDataAsync();
         }
 
-        private async Task RefreshProfileFromServerAsync()
+        private LoadingOverlay? ResolveLoadingOverlay()
+        {
+            if (loadingOverlay != null)
+                return loadingOverlay;
+
+            var existing = FindFirstObjectByType<LoadingOverlay>(FindObjectsInactive.Include);
+            if (existing != null)
+                return loadingOverlay = existing;
+
+            var canvas = FindFirstObjectByType<Canvas>();
+            if (canvas == null)
+                return null;
+
+            return loadingOverlay = LoadingOverlay.EnsureOnCanvas(canvas.transform);
+        }
+
+        private async Task LoadLobbyDataAsync()
         {
             if (backendConfig == null)
                 return;
+
+            var overlay = ResolveLoadingOverlay();
+            overlay?.Show("Загрузка данных…");
 
             try
             {
                 var api = new ApiClient(backendConfig);
                 var auth = new AuthManager(api);
+                overlay?.SetMessage("Проверка сессии…");
                 if (!await auth.TryRestoreSessionAsync(CancellationToken.None).ConfigureAwait(true))
                 {
                     Debug.LogWarning("[Lobby] Сессия недействительна. Переход на экран входа.");
@@ -87,46 +105,38 @@ namespace TapBrawl.UI
 
                 ApplyProfileUi(session.Player);
 
-                await PrefetchSkillsCoreAsync(api, session, CancellationToken.None).ConfigureAwait(true);
+                overlay?.SetMessage("Загрузка профиля и скиллов…");
+                var meTask = api.PlayersMeAsync(session.AccessToken, CancellationToken.None);
+                var skillsTask = api.PlayersMeSkillsAsync(session.AccessToken, CancellationToken.None);
+                await Task.WhenAll(meTask, skillsTask).ConfigureAwait(true);
 
-                var me = await api.PlayersMeAsync(session.AccessToken, CancellationToken.None);
-                if (!me.Success || me.Data == null)
+                var me = await meTask.ConfigureAwait(true);
+                if (me.Success && me.Data != null)
                 {
-                    Debug.LogWarning($"[Lobby] GET players/me: HTTP {me.StatusCode} {me.ErrorBody}");
-                    return;
+                    session.Player = me.Data;
+                    AuthContext.Current = session;
+                    AuthStorage.Save(session);
+                    ApplyProfileUi(session.Player);
                 }
+                else
+                    Debug.LogWarning($"[Lobby] GET players/me: HTTP {me.StatusCode} {me.ErrorBody}");
 
-                session.Player = me.Data;
-                AuthContext.Current = session;
-                AuthStorage.Save(session);
-                ApplyProfileUi(session.Player);
-                await PrefetchSkillsCoreAsync(api, session, CancellationToken.None).ConfigureAwait(true);
+                var skills = await skillsTask.ConfigureAwait(true);
+                ApplySkillsResult(session, skills);
             }
             catch (Exception ex)
             {
-                Debug.LogWarning("[Lobby] Профиль с сервера: " + ex.Message);
-            }
-        }
-
-        private async Task PrefetchSkillsAsync(AuthSession session)
-        {
-            if (backendConfig == null)
-                return;
-            try
-            {
-                var api = new ApiClient(backendConfig);
-                await PrefetchSkillsCoreAsync(api, session, CancellationToken.None).ConfigureAwait(true);
-            }
-            catch (Exception ex)
-            {
-                Debug.LogWarning("[Lobby] Скиллы: " + ex.Message);
+                Debug.LogWarning("[Lobby] Загрузка данных: " + ex.Message);
                 PlayerSkillsRuntimeState.ApplyOfflineMaxDefaults();
             }
+            finally
+            {
+                overlay?.Hide();
+            }
         }
 
-        private static async Task PrefetchSkillsCoreAsync(ApiClient api, AuthSession session, CancellationToken ct)
+        private static void ApplySkillsResult(AuthSession session, ApiResult<PlayerSkillsStateDto> skills)
         {
-            var skills = await api.PlayersMeSkillsAsync(session.AccessToken, ct).ConfigureAwait(true);
             if (skills.Success && skills.Data != null)
             {
                 PlayerSkillsRuntimeState.ApplyFromServer(skills.Data);
@@ -135,7 +145,10 @@ namespace TapBrawl.UI
                 AuthStorage.Save(session);
             }
             else
+            {
+                Debug.LogWarning($"[Lobby] GET players/me/skills: HTTP {skills.StatusCode} {skills.ErrorBody}");
                 PlayerSkillsRuntimeState.ApplyOfflineMaxDefaults();
+            }
         }
 
         private void ApplyProfileUi(PlayerProfileDto p)
