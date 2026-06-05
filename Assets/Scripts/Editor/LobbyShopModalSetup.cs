@@ -1,3 +1,4 @@
+using TapBrawl.Network;
 using TapBrawl.UI;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -10,6 +11,7 @@ namespace TapBrawl.Editor
     {
         private const string LobbyScenePath = "Assets/Scenes/Lobby.unity";
         private const string ShopPrefabPath = "Assets/Prefabs/UI/ShopModal.prefab";
+        private const string BackendConfigPath = "Assets/ScriptableObjects/BackendConfig.asset";
         private static readonly string BackArrowSpriteGuid = "21f5fdb6dcd364639938114508a30534";
 
         [MenuItem("Tap/Setup Lobby Shop Modal")]
@@ -77,7 +79,10 @@ namespace TapBrawl.Editor
             var header = CreateHeader(panel.transform);
             var titleText = CreateTitleText(header.transform);
             var backButton = CreateBackButton(header.transform);
-            var messageText = CreateMessageText(panel.transform);
+            var productsContainer = CreateProductsContainer(panel.transform);
+            var balanceText = CreateBalanceText(panel.transform);
+            var statusText = CreateStatusText(panel.transform);
+            var backendConfig = AssetDatabase.LoadAssetAtPath<BackendConfig>(BackendConfigPath);
 
             var toggle = modal.GetComponent<UiPanelToggle>();
             var toggleSo = new SerializedObject(toggle);
@@ -87,8 +92,12 @@ namespace TapBrawl.Editor
 
             var view = modal.GetComponent<ShopModalView>();
             var viewSo = new SerializedObject(view);
+            viewSo.FindProperty("backendConfig").objectReferenceValue = backendConfig;
+            viewSo.FindProperty("title").stringValue = "Магазин Adipoint";
             viewSo.FindProperty("titleText").objectReferenceValue = titleText;
-            viewSo.FindProperty("messageText").objectReferenceValue = messageText;
+            viewSo.FindProperty("balanceText").objectReferenceValue = balanceText;
+            viewSo.FindProperty("productsContainer").objectReferenceValue = productsContainer;
+            viewSo.FindProperty("statusText").objectReferenceValue = statusText;
             viewSo.ApplyModifiedPropertiesWithoutUndo();
 
             RewireBackButton(modal, toggle);
@@ -161,22 +170,53 @@ namespace TapBrawl.Editor
             return btn;
         }
 
-        private static Text CreateMessageText(Transform panel)
+        private static Text CreateBalanceText(Transform panel)
         {
-            var go = new GameObject("Message Text", typeof(RectTransform), typeof(Text));
+            var go = new GameObject("Balance Text", typeof(RectTransform), typeof(Text));
             go.transform.SetParent(panel, false);
             var rt = go.GetComponent<RectTransform>();
-            rt.anchorMin = new Vector2(0.1f, 0.35f);
-            rt.anchorMax = new Vector2(0.9f, 0.65f);
+            rt.anchorMin = new Vector2(0.1f, 0.82f);
+            rt.anchorMax = new Vector2(0.9f, 0.9f);
             rt.offsetMin = Vector2.zero;
             rt.offsetMax = Vector2.zero;
             var text = go.GetComponent<Text>();
-            ConfigureText(
-                text,
-                "Магазин всё ещё в разработке.",
-                32,
-                FontStyle.Normal,
-                TextAnchor.MiddleCenter);
+            ConfigureText(text, "Adipoint: 0", 30, FontStyle.Bold, TextAnchor.MiddleCenter);
+            return text;
+        }
+
+        private static Transform CreateProductsContainer(Transform panel)
+        {
+            var go = new GameObject("Products Container", typeof(RectTransform), typeof(VerticalLayoutGroup));
+            go.transform.SetParent(panel, false);
+            var rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = new Vector2(0.08f, 0.2f);
+            rt.anchorMax = new Vector2(0.92f, 0.82f);
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
+
+            var layout = go.GetComponent<VerticalLayoutGroup>();
+            layout.spacing = 14f;
+            layout.padding = new RectOffset(4, 4, 4, 4);
+            layout.childAlignment = TextAnchor.UpperCenter;
+            layout.childControlWidth = true;
+            layout.childControlHeight = true;
+            layout.childForceExpandWidth = true;
+            layout.childForceExpandHeight = false;
+            return go.transform;
+        }
+
+        private static Text CreateStatusText(Transform panel)
+        {
+            var go = new GameObject("Status Text", typeof(RectTransform), typeof(Text));
+            go.transform.SetParent(panel, false);
+            var rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = new Vector2(0.1f, 0.08f);
+            rt.anchorMax = new Vector2(0.9f, 0.18f);
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
+            var text = go.GetComponent<Text>();
+            ConfigureText(text, string.Empty, 26, FontStyle.Normal, TextAnchor.MiddleCenter);
+            text.color = new Color(0.85f, 0.9f, 1f, 1f);
             return text;
         }
 

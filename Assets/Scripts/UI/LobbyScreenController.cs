@@ -24,6 +24,7 @@ namespace TapBrawl.UI
         [SerializeField] private Button? logoutButton;
         [SerializeField] private Text? usernameText;
         [SerializeField] private Text? coinsText;
+        [SerializeField] private Text? gemsText;
         [SerializeField] private Text? rankText;
         [SerializeField] private Text? tierText;
         [SerializeField] private LoadingOverlay? loadingOverlay;
@@ -41,6 +42,7 @@ namespace TapBrawl.UI
 
         private void Start()
         {
+            TryAutoWireGemsText();
             if (logoutButton != null)
                 logoutButton.onClick.AddListener(Logout);
             PlayLobbyMusicIfConfigured();
@@ -58,8 +60,53 @@ namespace TapBrawl.UI
             }
 
             ApplyProfileUi(s.Player);
+            EnsureIapSubscription();
             if (backendConfig != null)
                 _ = LoadLobbyDataAsync();
+        }
+
+        private void EnsureIapSubscription()
+        {
+            if (IapManager.Instance == null)
+                return;
+            IapManager.Instance.GemsUpdated -= OnGemsUpdated;
+            IapManager.Instance.GemsUpdated += OnGemsUpdated;
+        }
+
+        private void OnGemsUpdated(int gems)
+        {
+            var session = AuthContext.Current;
+            if (session == null)
+                return;
+            session.Player.Gems = gems;
+            AuthContext.Current = session;
+            AuthStorage.Save(session);
+            ApplyProfileUi(session.Player);
+        }
+
+        private void TryAutoWireGemsText()
+        {
+            if (gemsText != null)
+                return;
+
+            if (coinsText != null)
+            {
+                var sibling = coinsText.transform.parent?.Find("GemsText")?.GetComponent<Text>();
+                if (sibling != null)
+                {
+                    gemsText = sibling;
+                    return;
+                }
+            }
+
+            foreach (var text in FindObjectsByType<Text>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            {
+                if (text.gameObject.name == "GemsText")
+                {
+                    gemsText = text;
+                    return;
+                }
+            }
         }
 
         private LoadingOverlay? ResolveLoadingOverlay()
@@ -157,13 +204,20 @@ namespace TapBrawl.UI
                 usernameText.text = p.Username;
             if (coinsText != null)
                 coinsText.text = $"Монеты: {p.Coins}";
+            if (gemsText != null)
+                gemsText.text = $"Adipoint: {p.Gems}";
             if (rankText != null)
                 rankText.text = $"Рейтинг: {p.RankPoints}";
             if (tierText != null)
                 tierText.text = $"Тир: {p.Tier}";
         }
 
-        private void OnDestroy() => StopLobbyMusic();
+        private void OnDestroy()
+        {
+            if (IapManager.Instance != null)
+                IapManager.Instance.GemsUpdated -= OnGemsUpdated;
+            StopLobbyMusic();
+        }
 
         public void Logout()
         {

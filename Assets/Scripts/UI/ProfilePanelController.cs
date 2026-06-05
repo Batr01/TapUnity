@@ -21,6 +21,7 @@ namespace TapBrawl.UI
         [SerializeField] private Button? saveButton;
         [Header("Профиль: ID")]
         [SerializeField] private Text? playerIdText;
+        [SerializeField] private Text? gemsText;
         [SerializeField] private Button? copyIdButton;
         [Header("Профиль: уровень / XP")]
         [SerializeField] private Text? levelText;
@@ -171,6 +172,8 @@ namespace TapBrawl.UI
         {
             if (playerIdText != null)
                 playerIdText.text = $"ID: {player.Id:D}";
+            if (gemsText != null)
+                gemsText.text = $"Adipoint: {player.Gems}";
         }
 
         private void RenderProgressBlock(int rankPoints)

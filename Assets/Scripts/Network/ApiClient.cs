@@ -152,6 +152,15 @@ namespace TapBrawl.Network
         public Task<ApiResult<ClientConfigDto>> GetConfigAsync(CancellationToken ct = default) =>
             GetJsonAsync<ClientConfigDto>("/api/v1/config", null, ct);
 
+        public Task<ApiResult<VerifyPurchaseResponseDto>> PurchasesGoogleVerifyAsync(
+            string bearer,
+            VerifyPurchaseRequestDto body,
+            CancellationToken ct = default) =>
+            PostJsonAsync<VerifyPurchaseResponseDto>("/api/v1/purchases/google/verify", body, bearer, ct);
+
+        public Task<ApiResult<System.Collections.Generic.List<ShopProductDto>>> ShopProductsAsync(CancellationToken ct = default) =>
+            GetJsonAsync<System.Collections.Generic.List<ShopProductDto>>("/api/v1/shop/products", null, ct);
+
         public async Task<ApiResult<T>> GetJsonAsync<T>(string path, string bearer, CancellationToken ct = default)
         {
             await ApplyDevRequestDelayAsync(ct);
