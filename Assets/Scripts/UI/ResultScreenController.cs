@@ -11,47 +11,52 @@ using UnityEngine.UI;
 namespace TapBrawl.UI
 {
     /// <summary>
-    /// Сцена Result: отправка <c>submit-my-stats</c>, при необходимости ожидание соперника, вывод итога.
-    /// Звук: в инспекторе можно назначить фоновую музыку для победы/поражения/ничьей и короткие эффекты для «ты» / соперника.
+    /// Сцена Result: отправка <c>submit-my-stats</c> (или использование SignalR-результата),
+    /// ожидание соперника при необходимости, вывод итогов.
+    /// Кнопки: «Найти игру» → Lobby, «В меню» → Lobby без автопоиска.
     /// </summary>
     public sealed class ResultScreenController : MonoBehaviour
     {
         [SerializeField] private BackendConfig backendConfig = null!;
-        [SerializeField] private string authSceneName = "Auth";
+        [SerializeField] private string authSceneName  = "Auth";
         [SerializeField] private string lobbySceneName = "Lobby";
         [SerializeField] private Text? statusText;
         [SerializeField] private Text? headlineText;
         [SerializeField] private Text? detailsText;
+
+        [Header("Кнопки после матча")]
+        [Tooltip("«Найти новую игру» — переход в лобби с автоматическим запуском поиска.")]
+        [SerializeField] private Button? findNewGameButton;
+        [Tooltip("«В меню» — переход в лобби без поиска.")]
+        [SerializeField] private Button? backToMenuButton;
+        [Tooltip("Устаревшая кнопка «Назад в лобби» (если используется). Работает как «В меню».")]
         [SerializeField] private Button? backToLobbyButton;
 
         [Header("Звук результата")]
-        [Tooltip("Источник для фоновой музыки (loop). Если пусто — будет создан на этом объекте.")]
         [SerializeField] private AudioSource? resultMusicSource;
-        [Tooltip("Источник для коротких эффектов при показе результата. Если пусто — второй AudioSource на этом объекте.")]
         [SerializeField] private AudioSource? resultSfxSource;
-        [Tooltip("Фон при победе локального игрока (зацикливается).")]
         [SerializeField] private AudioClip? musicIfLocalWon;
-        [Tooltip("Фон при поражении локального игрока (зацикливается).")]
         [SerializeField] private AudioClip? musicIfLocalLost;
-        [Tooltip("Фон при одинаковом счёте (если не задан — берётся победа/поражение по серверному победителю).")]
         [SerializeField] private AudioClip? musicIfDrawScore;
         [Range(0f, 1f)] [SerializeField] private float musicVolume = 0.75f;
 
-        [Tooltip("Короткий эффект для строки «ты» при появлении итога.")]
         [SerializeField] private AudioClip? sfxLocalPlayerResult;
-        [Tooltip("Короткий эффект для блока соперника при появлении итога.")]
         [SerializeField] private AudioClip? sfxOpponentPlayerResult;
         [Range(0f, 1f)] [SerializeField] private float sfxVolume = 1f;
-        [Tooltip("Задержка перед звуком соперника (сек), чтобы не накладывались.")]
         [SerializeField] private float opponentSfxDelaySec = 0.12f;
-        [Tooltip("Дополнительные one-shot эффекты по порядку после основных (интервал между ними, сек).")]
         [SerializeField] private AudioClip[] extraResultSfx = new AudioClip[0];
         [SerializeField] private float extraSfxIntervalSec = 0.08f;
 
         private void Awake()
         {
+            if (findNewGameButton != null)
+                findNewGameButton.onClick.AddListener(GoFindGame);
+            if (backToMenuButton != null)
+                backToMenuButton.onClick.AddListener(GoMenu);
             if (backToLobbyButton != null)
-                backToLobbyButton.onClick.AddListener(GoLobby);
+                backToLobbyButton.onClick.AddListener(GoMenu);
+
+            SetButtonsVisible(false);
             EnsureAudioSources();
         }
 
@@ -77,7 +82,22 @@ namespace TapBrawl.UI
 
             try
             {
-                var api = new ApiClient(backendConfig);
+                // Быстрый путь: сервер уже прислал результат по SignalR во время пост-игровой фазы
+                var pushed = PendingMatchFinalResult.TryConsume();
+                if (pushed != null)
+                {
+                    SetStatus(string.Empty);
+                    ShowResult(pushed, pending.MyPlayerId);
+                    StartResultAudio(pushed, pending.MyPlayerId);
+                    SetButtonsVisible(true);
+
+                    // Отправляем статы в фоне для надёжности (Mongo-запись), не ждём ответа
+                    _ = SubmitStatsInBackgroundAsync(pending);
+                    return;
+                }
+
+                // Стандартный путь: авторизация + submit + poll
+                var api  = new ApiClient(backendConfig);
                 var auth = new AuthManager(api);
                 if (!await auth.TryRestoreSessionAsync(CancellationToken.None).ConfigureAwait(true))
                 {
@@ -97,8 +117,8 @@ namespace TapBrawl.UI
                 SetStatus("Отправка результата…");
                 var body = new SubmitMyMatchStatsBody
                 {
-                    Score = pending.MyScore,
-                    Taps = pending.MyTaps,
+                    Score  = pending.MyScore,
+                    Taps   = pending.MyTaps,
                     Misses = pending.MyMisses,
                 };
 
@@ -106,6 +126,7 @@ namespace TapBrawl.UI
                 if (!sub.Success || sub.Data == null)
                 {
                     SetStatus($"Ошибка отправки: HTTP {sub.StatusCode} {sub.ErrorBody}");
+                    SetButtonsVisible(true);
                     return;
                 }
 
@@ -113,6 +134,7 @@ namespace TapBrawl.UI
                 {
                     ShowResult(sub.Data.Result, pending.MyPlayerId);
                     StartResultAudio(sub.Data.Result, pending.MyPlayerId);
+                    SetButtonsVisible(true);
                     return;
                 }
 
@@ -125,16 +147,44 @@ namespace TapBrawl.UI
                     {
                         ShowResult(get.Data, pending.MyPlayerId);
                         StartResultAudio(get.Data, pending.MyPlayerId);
+                        SetButtonsVisible(true);
                         return;
                     }
                 }
 
                 SetStatus("Таймаут: соперник не отправил результат.");
+                SetButtonsVisible(true);
             }
             catch (Exception ex)
             {
                 SetStatus("Ошибка: " + ex.Message);
                 Debug.LogException(ex);
+                SetButtonsVisible(true);
+            }
+        }
+
+        private async Task SubmitStatsInBackgroundAsync(PendingMatchResultPayload pending)
+        {
+            try
+            {
+                var api  = new ApiClient(backendConfig);
+                var auth = new AuthManager(api);
+                if (!await auth.TryRestoreSessionAsync(CancellationToken.None).ConfigureAwait(false))
+                    return;
+                var session = AuthContext.Current;
+                if (session == null)
+                    return;
+                var body = new SubmitMyMatchStatsBody
+                {
+                    Score  = pending.MyScore,
+                    Taps   = pending.MyTaps,
+                    Misses = pending.MyMisses,
+                };
+                await api.MatchesSubmitMyStatsAsync(session.AccessToken, pending.MatchId, body, CancellationToken.None);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning("[Result] Фоновая отправка статов: " + ex.Message);
             }
         }
 
@@ -142,9 +192,9 @@ namespace TapBrawl.UI
         {
             SetStatus(string.Empty);
 
-            var me = r.Player1.PlayerId == myPlayerId ? r.Player1 : r.Player2;
+            var me  = r.Player1.PlayerId == myPlayerId ? r.Player1 : r.Player2;
             var opp = r.Player1.PlayerId == myPlayerId ? r.Player2 : r.Player1;
-            var iWon = r.WinnerPlayerId == myPlayerId;
+            var iWon      = r.WinnerPlayerId == myPlayerId;
             var sameScore = r.Player1.Score == r.Player2.Score;
 
             if (headlineText != null)
@@ -173,9 +223,16 @@ namespace TapBrawl.UI
             }
         }
 
+        private void SetButtonsVisible(bool visible)
+        {
+            if (findNewGameButton != null) findNewGameButton.gameObject.SetActive(visible);
+            if (backToMenuButton  != null) backToMenuButton.gameObject.SetActive(visible);
+            if (backToLobbyButton != null) backToLobbyButton.gameObject.SetActive(visible);
+        }
+
         private void StartResultAudio(MatchResultResponseDto r, Guid myPlayerId)
         {
-            var iWon = r.WinnerPlayerId == myPlayerId;
+            var iWon      = r.WinnerPlayerId == myPlayerId;
             var sameScore = r.Player1.Score == r.Player2.Score;
             StartCoroutine(PlayResultAudioRoutine(iWon, sameScore));
         }
@@ -276,9 +333,20 @@ namespace TapBrawl.UI
                 Debug.Log("[Result] " + msg);
         }
 
-        private void GoLobby()
+        /// <summary>Переход в Lobby с флагом автопоиска игры.</summary>
+        private void GoFindGame()
         {
             StopResultMusic();
+            LobbyAutoSearch.RequestAutoSearch = true;
+            if (!string.IsNullOrEmpty(lobbySceneName))
+                SceneManager.LoadScene(lobbySceneName, LoadSceneMode.Single);
+        }
+
+        /// <summary>Переход в Lobby без поиска.</summary>
+        private void GoMenu()
+        {
+            StopResultMusic();
+            LobbyAutoSearch.RequestAutoSearch = false;
             if (!string.IsNullOrEmpty(lobbySceneName))
                 SceneManager.LoadScene(lobbySceneName, LoadSceneMode.Single);
         }

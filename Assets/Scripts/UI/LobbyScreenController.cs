@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using TapBrawl.Core.Skills;
@@ -216,7 +217,9 @@ namespace TapBrawl.UI
                 overlay?.SetMessage("Загрузка профиля и скиллов…");
                 var meTask = api.PlayersMeAsync(session.AccessToken, CancellationToken.None);
                 var skillsTask = api.PlayersMeSkillsAsync(session.AccessToken, CancellationToken.None);
-                await Task.WhenAll(meTask, skillsTask).ConfigureAwait(true);
+                var shopProductsTask = api.ShopProductsAsync(CancellationToken.None);
+                var shopExchangeTask = api.ShopExchangePacksAsync(CancellationToken.None);
+                await Task.WhenAll(meTask, skillsTask, shopProductsTask, shopExchangeTask).ConfigureAwait(true);
 
                 var me = await meTask.ConfigureAwait(true);
                 if (me.Success && me.Data != null)
@@ -231,6 +234,14 @@ namespace TapBrawl.UI
 
                 var skills = await skillsTask.ConfigureAwait(true);
                 ApplySkillsResult(session, skills);
+
+                var shopProducts = await shopProductsTask.ConfigureAwait(true);
+                if (shopProducts.Success && shopProducts.Data is { Count: > 0 })
+                    ShopCatalogCache.SetProducts(shopProducts.Data);
+
+                var shopExchange = await shopExchangeTask.ConfigureAwait(true);
+                if (shopExchange.Success && shopExchange.Data is { Count: > 0 })
+                    ShopCatalogCache.SetExchangePacks(shopExchange.Data);
             }
             catch (Exception ex)
             {

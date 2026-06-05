@@ -86,6 +86,19 @@ namespace TapBrawl.Core
         private int _tapCount;
         private int _missCount;
         private bool _resultSceneLoadAttempted;
+
+        // Отсчёт перед стартом
+        private bool _isPreGame;
+        private Coroutine? _countdownRoutine;
+        private TMP_Text? _countdownLabel;
+
+        // Пост-игровая фаза (5 с стикеров после матча)
+        private bool _isPostGame;
+        private float _postGameEndTime;
+        private Coroutine? _postGameRoutine;
+        private const float PostGameDurationSec = 5f;
+        private TMP_Text? _postGameLabel;
+
         private float _giantCirclesSkillEndUnscaled;
         private float _overheatSkillEndUnscaled;
         private float _opponentRedDeceptionEndUnscaled;
@@ -125,6 +138,12 @@ namespace TapBrawl.Core
         private Vector2 _lastSuccessfulTapPopupAnchored;
 
         public bool IsRunning { get; private set; }
+
+        /// <summary>true — матч завершён, но ещё идёт 5-секундное окно стикеров.</summary>
+        public bool IsPostGame => _isPostGame;
+
+        /// <summary>Секунд до конца пост-игрового окна (убывает с 5 до 0).</summary>
+        public float PostGameRemainingSeconds => _isPostGame ? Mathf.Max(0f, _postGameEndTime - Time.unscaledTime) : 0f;
 
         /// <summary>Множитель визуального размера кругов (якоря в play area). Используется спавнером и <see cref="PooledCircle"/>.</summary>
         public float ActiveCircleVisualSizeMultiplier =>
@@ -196,7 +215,7 @@ namespace TapBrawl.Core
 
         /// <summary>Оставшееся время до следующей отправки пинга (сек, unscaled).</summary>
         public float PingSendCooldownRemainingSeconds =>
-            IsRunning ? Mathf.Max(0f, _pingSendReadyUnscaled - Time.unscaledTime) : 0f;
+            (IsRunning || _isPostGame) ? Mathf.Max(0f, _pingSendReadyUnscaled - Time.unscaledTime) : 0f;
 
         /// <summary>Продлевает таймер скилла на полную длительность от текущего момента.</summary>
         public void TryActivateGiantCirclesSkill()
@@ -327,7 +346,7 @@ namespace TapBrawl.Core
         /// <summary>Пинг сопернику (онлайн — через хаб; тренировка — только локальный UI «отправлено»).</summary>
         public void RequestSendPing(int pingType)
         {
-            if (!IsRunning || !MatchPingIds.IsValid(pingType))
+            if ((!IsRunning && !_isPostGame) || !MatchPingIds.IsValid(pingType))
                 return;
             if (Time.unscaledTime < _pingSendReadyUnscaled)
                 return;
@@ -372,10 +391,11 @@ namespace TapBrawl.Core
             var hub = MatchConnectionHolder.Instance?.Hub;
             if (hub == null)
                 return;
-            hub.OpponentVisualSkill += OnOpponentVisualSkillReceived;
-            hub.PlayerPing += OnPlayerPingReceived;
+            hub.OpponentVisualSkill  += OnOpponentVisualSkillReceived;
+            hub.PlayerPing           += OnPlayerPingReceived;
+            hub.MatchResultReady     += OnMatchResultReady;
             _hubMatchEventsSubscribed = true;
-            Debug.Log("[Match] Подписка на события матча (скиллы соперника + пинги).");
+            Debug.Log("[Match] Подписка на события матча.");
         }
 
         private void UnsubscribeMatchHubEvents()
@@ -385,8 +405,9 @@ namespace TapBrawl.Core
             var hub = MatchConnectionHolder.Instance?.Hub;
             if (hub != null)
             {
-                hub.OpponentVisualSkill -= OnOpponentVisualSkillReceived;
-                hub.PlayerPing -= OnPlayerPingReceived;
+                hub.OpponentVisualSkill  -= OnOpponentVisualSkillReceived;
+                hub.PlayerPing           -= OnPlayerPingReceived;
+                hub.MatchResultReady     -= OnMatchResultReady;
             }
 
             _hubMatchEventsSubscribed = false;
@@ -420,6 +441,16 @@ namespace TapBrawl.Core
             }
 
             _pendingIncomingPings.Enqueue(dto.PingType);
+        }
+
+        // Вызывается с фонового потока SignalR — только потокобезопасные операции.
+        private void OnMatchResultReady(MatchResultResponseDto dto)
+        {
+            if (dto == null)
+                return;
+            // Сохраняем результат — ResultScreenController прочитает его без опроса.
+            PendingMatchFinalResult.Set(dto);
+            Debug.Log("[Match] MatchResultReady получен, победитель: " + dto.WinnerPlayerId);
         }
 
         private void EnsureSmokeVeilOverlay()
@@ -628,30 +659,142 @@ namespace TapBrawl.Core
             PlayGameplayMusicIfConfigured();
         }
 
-        /// <summary>Старт по данным с сервера (после MatchFound).</summary>
+        /// <summary>Старт по данным с сервера (после MatchFound) — сначала 3 с обратного отсчёта.</summary>
         public void StartOnline(OnlineMatchParams p)
         {
             StopMatch();
-            _onlineMode = true;
-            _online = p;
-            _tapCount = 0;
-            _missCount = 0;
+            _onlineMode  = true;
+            _online      = p;
+            _tapCount    = 0;
+            _missCount   = 0;
             _resultSceneLoadAttempted = false;
-            IsRunning = true;
-            _score = 0;
+            _isPreGame   = true;
+            _score       = 0;
             _hasLastSuccessfulTapPopupAnchor = false;
-            _endTime = Time.unscaledTime + p.DurationSec;
-            spawner.Begin(this, p.Seed);
+            _pingSendReadyUnscaled = 0f;
+            PendingMatchFinalResult.Clear();
             ApplyModeUi("Онлайн 1v1", p.OpponentUsername);
             RefreshUi();
-            PlayGameplayMusicIfConfigured();
-            _pingSendReadyUnscaled = 0f;
             SubscribeMatchHubEventsIfNeeded();
+            _countdownRoutine = StartCoroutine(CountdownRoutine(p));
+        }
+
+        private IEnumerator CountdownRoutine(OnlineMatchParams p)
+        {
+            EnsureCountdownLabel();
+            if (_countdownLabel != null) _countdownLabel.gameObject.SetActive(true);
+
+            for (var i = 3; i >= 1; i--)
+            {
+                if (_countdownLabel != null) _countdownLabel.text = i.ToString();
+                yield return new WaitForSecondsRealtime(1f);
+            }
+
+            if (_countdownLabel != null) _countdownLabel.text = "Бой!";
+            yield return new WaitForSecondsRealtime(0.6f);
+            if (_countdownLabel != null) _countdownLabel.gameObject.SetActive(false);
+
+            _isPreGame = false;
+            IsRunning  = true;
+            _endTime   = Time.unscaledTime + p.DurationSec;
+            spawner.Begin(this, p.Seed);
+            RefreshUi();
+            PlayGameplayMusicIfConfigured();
+            _countdownRoutine = null;
+        }
+
+        private void EnsureCountdownLabel()
+        {
+            if (_countdownLabel != null)
+                return;
+            var canvas = FindFirstObjectByType<Canvas>();
+            if (canvas == null)
+                return;
+            var go = new GameObject("CountdownOverlay", typeof(RectTransform), typeof(TMP_Text));
+            go.transform.SetParent(canvas.transform, false);
+            var rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = new Vector2(0f, 0f);
+            rt.anchorMax = new Vector2(1f, 1f);
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
+            _countdownLabel = go.GetComponent<TMP_Text>();
+            _countdownLabel.fontSize = 180;
+            _countdownLabel.alignment = TextAlignmentOptions.Center;
+            _countdownLabel.color = Color.white;
+            _countdownLabel.outlineWidth = 0.25f;
+            _countdownLabel.outlineColor = new Color32(0, 0, 0, 200);
+            go.SetActive(false);
+        }
+
+        /// <summary>
+        /// Пост-игровая фаза: 5 секунд стикеров после завершения матча.
+        /// Стаи сохраняются, хаб остаётся подключён — пинги работают.
+        /// После окончания → переход на экран результатов.
+        /// </summary>
+        private IEnumerator PostGamePhaseRoutine()
+        {
+            _isPostGame   = true;
+            _postGameEndTime = Time.unscaledTime + PostGameDurationSec;
+            // Сбрасываем кулдаун пингов — в пост-игре можно отправлять сразу
+            _pingSendReadyUnscaled = 0f;
+
+            EnsurePostGameLabel();
+            if (_postGameLabel != null) _postGameLabel.gameObject.SetActive(true);
+
+            StopGameplayMusic();
+
+            while (Time.unscaledTime < _postGameEndTime)
+            {
+                var remaining = Mathf.CeilToInt(_postGameEndTime - Time.unscaledTime);
+                if (_postGameLabel != null)
+                    _postGameLabel.text = $"Матч завершён!\nОтправляй стикеры: {remaining}с";
+                yield return null;
+            }
+
+            if (_postGameLabel != null) _postGameLabel.gameObject.SetActive(false);
+            _isPostGame = false;
+
+            UnsubscribeMatchHubEvents();
+            MatchConnectionHolder.Instance?.ReleaseHub();
+
+            if (!TryLoadResultScene())
+                StopMatch();
+
+            _postGameRoutine = null;
+        }
+
+        private void EnsurePostGameLabel()
+        {
+            if (_postGameLabel != null)
+                return;
+            var canvas = FindFirstObjectByType<Canvas>();
+            if (canvas == null)
+                return;
+            var go = new GameObject("PostGameOverlay", typeof(RectTransform), typeof(TMP_Text));
+            go.transform.SetParent(canvas.transform, false);
+            var rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = new Vector2(0f, 0.35f);
+            rt.anchorMax = new Vector2(1f, 0.65f);
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
+            _postGameLabel = go.GetComponent<TMP_Text>();
+            _postGameLabel.fontSize = 52;
+            _postGameLabel.alignment = TextAlignmentOptions.Center;
+            _postGameLabel.color = Color.white;
+            _postGameLabel.outlineWidth = 0.2f;
+            _postGameLabel.outlineColor = new Color32(0, 0, 0, 180);
+            go.SetActive(false);
         }
 
         public void StopMatch()
         {
             StopChainDischargeRoutineIfRunning();
+            if (_countdownRoutine != null) { StopCoroutine(_countdownRoutine); _countdownRoutine = null; }
+            if (_postGameRoutine != null)  { StopCoroutine(_postGameRoutine);  _postGameRoutine  = null; }
+            if (_countdownLabel != null)   _countdownLabel.gameObject.SetActive(false);
+            if (_postGameLabel != null)    _postGameLabel.gameObject.SetActive(false);
+            _isPreGame  = false;
+            _isPostGame = false;
             IsRunning = false;
             _giantCirclesSkillEndUnscaled = 0f;
             _overheatSkillEndUnscaled = 0f;
@@ -687,7 +830,7 @@ namespace TapBrawl.Core
 
         private void ResolveTap(PooledCircle circle, bool allowChainDischarge, bool chainLightningStrike = false)
         {
-            if (!IsRunning)
+            if (!IsRunning || _isPreGame)
                 return;
 
             GameplayCircleTapped?.Invoke();
@@ -1134,13 +1277,13 @@ namespace TapBrawl.Core
 
             while (_pendingIncomingPings.TryDequeue(out var pingType))
             {
-                if (IsRunning)
+                if (IsRunning || _isPostGame)
                     PlayerPingReceivedFromNetwork?.Invoke(pingType);
             }
 
             while (_pendingLocalPingsSent.TryDequeue(out var sentPingType))
             {
-                if (IsRunning)
+                if (IsRunning || _isPostGame)
                     LocalPlayerPingSent?.Invoke(sentPingType);
             }
 
@@ -1154,9 +1297,10 @@ namespace TapBrawl.Core
             {
                 if (_onlineMode)
                 {
-                    if (_resultSceneLoadAttempted)
+                    if (_resultSceneLoadAttempted || _isPostGame)
                         return;
                     _resultSceneLoadAttempted = true;
+                    IsRunning = false;
 
                     var myId = AuthContext.Current?.Player.Id ?? System.Guid.Empty;
                     PendingMatchResult.Set(new PendingMatchResultPayload(
@@ -1167,11 +1311,8 @@ namespace TapBrawl.Core
                         _tapCount,
                         _missCount,
                         _online.DurationSec));
-                    UnsubscribeMatchHubEvents();
-                    MatchConnectionHolder.Instance?.ReleaseHub();
-                    IsRunning = false;
-                    if (!TryLoadResultScene())
-                        StopMatch();
+
+                    _postGameRoutine = StartCoroutine(PostGamePhaseRoutine());
                     return;
                 }
 

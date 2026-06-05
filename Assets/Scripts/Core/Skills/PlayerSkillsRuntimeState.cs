@@ -11,8 +11,12 @@ namespace TapBrawl.Core.Skills
 
         private static int[]? _trainingArenaLoadoutBackup;
 
+        /// <summary>Последний полный DTO от сервера. Null до первой загрузки.</summary>
+        public static PlayerSkillsStateDto? CachedDto { get; private set; }
+
         public static void ApplyFromServer(PlayerSkillsStateDto dto)
         {
+            CachedDto = dto;
             Levels.Clear();
             foreach (var s in dto.Skills)
                 Levels[s.SkillId] = s.Level;

@@ -33,6 +33,15 @@ namespace TapBrawl.UI
                 findMatchButton.onClick.AddListener(FindMatchClickedAsync);
         }
 
+        private void Start()
+        {
+            if (LobbyAutoSearch.RequestAutoSearch)
+            {
+                LobbyAutoSearch.RequestAutoSearch = false;
+                FindMatchClickedAsync();
+            }
+        }
+
         private void OnDestroy()
         {
             if (_leavingToMatchScene)

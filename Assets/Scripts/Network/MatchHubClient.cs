@@ -27,6 +27,7 @@ namespace TapBrawl.Network
         public event Action<MatchFoundDto>? MatchFound;
         public event Action<OpponentVisualSkillDto>? OpponentVisualSkill;
         public event Action<PlayerPingDto>? PlayerPing;
+        public event Action<MatchResultResponseDto>? MatchResultReady;
 
         public bool IsConnected => _hub?.State == HubConnectionState.Connected;
 
@@ -64,6 +65,12 @@ namespace TapBrawl.Network
             {
                 if (dto != null)
                     PlayerPing?.Invoke(dto);
+            });
+
+            _hub.On<MatchResultResponseDto>(HubEvents.MatchResultReady, dto =>
+            {
+                if (dto != null)
+                    MatchResultReady?.Invoke(dto);
             });
 
             _hub.Closed += ex =>
@@ -129,6 +136,7 @@ namespace TapBrawl.Network
             public const string MatchFound = "MatchFound";
             public const string OpponentVisualSkill = "OpponentVisualSkill";
             public const string PlayerPing = "PlayerPing";
+            public const string MatchResultReady = "MatchResultReady";
         }
 
         private static class HubMethods

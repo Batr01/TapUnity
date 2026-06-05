@@ -316,13 +316,19 @@ namespace TapBrawl.UI
 
             ReplaceVerticalWithHorizontal(row.gameObject);
 
+            var rowView = row.GetComponent<SkillUpgradeRowView>();
+            rowView?.EnsureInfoUi();
+
             var icon = row.Find("Skill Icon Image");
-            var name = row.Find("Name Text");
+            var infoColumn = row.Find("Info Column");
+            var name = infoColumn != null ? infoColumn.Find("Name Text") : row.Find("Name Text");
             var buttons = row.Find("Button Group");
 
             if (icon != null)
                 icon.SetSiblingIndex(0);
-            if (name != null)
+            if (infoColumn != null)
+                infoColumn.SetSiblingIndex(1);
+            else if (name != null)
                 name.SetSiblingIndex(1);
             if (buttons != null)
                 buttons.SetSiblingIndex(2);
@@ -340,7 +346,26 @@ namespace TapBrawl.UI
                     iconImg.preserveAspect = true;
             }
 
-            if (name != null)
+            if (infoColumn != null)
+            {
+                var infoLe = GetOrAddLayoutElement(infoColumn.gameObject);
+                infoLe.flexibleWidth = 1f;
+                infoLe.minWidth = 100f;
+                infoLe.preferredHeight = RowIconSize;
+                infoLe.flexibleHeight = 0f;
+
+                var infoVlg = infoColumn.GetComponent<VerticalLayoutGroup>();
+                if (infoVlg != null)
+                {
+                    infoVlg.childAlignment = TextAnchor.MiddleLeft;
+                    infoVlg.spacing = 2f;
+                    infoVlg.childControlWidth = true;
+                    infoVlg.childControlHeight = true;
+                    infoVlg.childForceExpandWidth = true;
+                    infoVlg.childForceExpandHeight = false;
+                }
+            }
+            else if (name != null)
             {
                 var nameLe = GetOrAddLayoutElement(name.gameObject);
                 nameLe.flexibleWidth = 1f;

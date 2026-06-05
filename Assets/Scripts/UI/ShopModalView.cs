@@ -242,6 +242,14 @@ namespace TapBrawl.UI
                 return;
 
             _loading = true;
+
+            if (ShopCatalogCache.HasProducts && ShopCatalogCache.HasExchangePacks)
+            {
+                RenderFromCache();
+                _loading = false;
+                return;
+            }
+
             SetStatus("Загрузка товаров…");
 
             var products = GetFallbackProducts();
@@ -253,7 +261,10 @@ namespace TapBrawl.UI
                     var api = new ApiClient(backendConfig);
                     var result = await api.ShopProductsAsync(CancellationToken.None).ConfigureAwait(true);
                     if (result.Success && result.Data is { Count: > 0 })
+                    {
                         products = result.Data;
+                        ShopCatalogCache.SetProducts(result.Data);
+                    }
                 }
 
                 if (IapManager.UseDevPurchases)
@@ -284,6 +295,24 @@ namespace TapBrawl.UI
             }
         }
 
+        private void RenderFromCache()
+        {
+            var products = ShopCatalogCache.Products!;
+            if (IapManager.UseDevPurchases)
+            {
+                RebuildProductPacks(products);
+                SetStatus(backendConfig == null ? "DEV: нет BackendConfig" : "DEV: тест без Google Play");
+            }
+            else
+            {
+                _iap?.EnsureInitialized(CollectIds(products));
+                RebuildProductPacks(products);
+                SetStatus(_iap is { IsReady: true } ? string.Empty : "Подключение к магазину…");
+            }
+
+            RebuildExchangePacks(ShopCatalogCache.ExchangePacks!);
+        }
+
         private async Task LoadExchangePacksAsync()
         {
             var packs = GetFallbackExchangePacks();
@@ -293,7 +322,10 @@ namespace TapBrawl.UI
                 var api = new ApiClient(backendConfig);
                 var result = await api.ShopExchangePacksAsync(CancellationToken.None).ConfigureAwait(true);
                 if (result.Success && result.Data is { Count: > 0 })
+                {
                     packs = result.Data;
+                    ShopCatalogCache.SetExchangePacks(result.Data);
+                }
             }
 
             RebuildExchangePacks(packs);

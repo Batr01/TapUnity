@@ -12,7 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5d3095d0df5fe4a468c29a06b0335de1, type: 3}
   m_Name: BackendConfig
   m_EditorClassIdentifier: Assembly-CSharp::TapBrawl.Network.BackendConfig
-  developmentBaseUrl: http://172.20.10.4:5088
+  developmentBaseUrl: http://192.168.0.113:5088
   productionBaseUrl: https://api.tapbrawl.com
   googleWebClientId: 107796233967-o6jogsu2s02pqu7ghhgcofr1992vla0a.apps.googleusercontent.com
   googleIosClientId: 
+  devSimulateRequestDelayMs: 3000

@@ -71,7 +71,53 @@ namespace TapBrawl.UI
         {
             CurrencyState.BalancesUpdated -= OnBalancesUpdated;
             CurrencyState.BalancesUpdated += OnBalancesUpdated;
-            _ = RefreshAsync();
+
+            var cached = PlayerSkillsRuntimeState.CachedDto;
+            var session = AuthContext.Current;
+            if (cached != null && session != null)
+            {
+                ApplyState(cached, session);
+                SetStatus($"Монеты: {cached.Coins}. Лоадаут: {string.Join(", ", cached.LoadoutSlotSkillIds)}");
+                _ = RefreshInBackgroundAsync();
+            }
+            else
+            {
+                _ = RefreshAsync();
+            }
+        }
+
+        private async System.Threading.Tasks.Task RefreshInBackgroundAsync()
+        {
+            var session = AuthContext.Current;
+            if (session == null || backendConfig == null)
+                return;
+
+            var api = new ApiClient(backendConfig);
+            var res = await api.PlayersMeSkillsAsync(session.AccessToken).ConfigureAwait(true);
+            if (!res.Success || res.Data == null)
+                return;
+
+            var cached = PlayerSkillsRuntimeState.CachedDto;
+            var changed = cached == null
+                || res.Data.Coins != cached.Coins
+                || res.Data.Skills.Count != cached.Skills.Count;
+
+            if (!changed)
+            {
+                for (var i = 0; i < res.Data.Skills.Count && !changed; i++)
+                {
+                    var fresh = res.Data.Skills[i];
+                    var old = cached!.Skills.Find(x => x.SkillId == fresh.SkillId);
+                    if (old == null || old.Level != fresh.Level)
+                        changed = true;
+                }
+            }
+
+            if (changed)
+            {
+                ApplyState(res.Data, session);
+                SetStatus($"Монеты: {res.Data.Coins}. Лоадаут: {string.Join(", ", res.Data.LoadoutSlotSkillIds)}");
+            }
         }
 
         private void OnDisable() => CurrencyState.BalancesUpdated -= OnBalancesUpdated;

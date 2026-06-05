@@ -119,7 +119,9 @@ namespace TapBrawl.UI
             var m = match;
             if (_openButton == null || _openButtonCaption == null || m == null)
                 return;
-            if (!m.IsRunning)
+
+            var active = m.IsRunning || m.IsPostGame;
+            if (!active)
             {
                 _openButton.interactable = false;
                 _openButtonCaption.text = "Пинги";
@@ -167,7 +169,7 @@ namespace TapBrawl.UI
         {
             if (_pickerRoot == null || !_pickerRoot.activeSelf)
                 return;
-            if (match == null || !match.IsRunning)
+            if (match == null || (!match.IsRunning && !match.IsPostGame))
                 return;
             if (!MatchController.WasPrimaryPointerReleasedThisFrame())
                 return;
@@ -535,7 +537,9 @@ namespace TapBrawl.UI
 
         private void TogglePicker()
         {
-            if (_pickerRoot == null || match == null || !match.IsRunning)
+            if (_pickerRoot == null || match == null)
+                return;
+            if (!match.IsRunning && !match.IsPostGame)
                 return;
             if (match.PingSendCooldownRemainingSeconds > 0.05f)
                 return;

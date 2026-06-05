@@ -32,7 +32,7 @@ namespace TapBrawl.Network
         [Header("TODO: убрать после теста загрузки")]
         [Tooltip("Искусственная задержка перед каждым HTTP-запросом, мс. Поставьте 2000–5000 для проверки оверлея.")]
         [SerializeField]
-        private int devSimulateRequestDelayMs = 3000;
+        private int devSimulateRequestDelayMs = 0;
 
         public int DevSimulateRequestDelayMs => Mathf.Max(0, devSimulateRequestDelayMs);
 #endif
