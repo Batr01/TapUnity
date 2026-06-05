@@ -19,11 +19,16 @@ namespace TapBrawl.UI
         [SerializeField] private Text? statusText;
         [SerializeField] private UpdateRequiredModal? updateRequiredModal;
         [SerializeField] private LoadingOverlay? loadingOverlay;
+        [SerializeField] private CompanySplashView? companySplash;
 
         private LoadingOverlay? _overlay;
 
         private async void Start()
         {
+            var splash = companySplash ?? FindFirstObjectByType<CompanySplashView>(FindObjectsInactive.Include);
+            if (splash != null)
+                await splash.PlayAsync(CancellationToken.None).ConfigureAwait(true);
+
             if (backendConfig == null)
             {
                 LogStatus("BackendConfig не назначен.");
