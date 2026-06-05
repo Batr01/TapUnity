@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using TapBrawl.Core;
 using TapBrawl.Core.Skills;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -17,38 +18,38 @@ namespace TapBrawl.UI
 
         [Header("Слоты 0..2 (лоадаут из лобби)")]
         [SerializeField] private Button? skillSlot0Button;
-        [SerializeField] private Text? skillSlot0StatusText;
+        [SerializeField] private TMP_Text? skillSlot0StatusText;
         [SerializeField] private Image? skillSlot0IconImage;
         [SerializeField] private Button? skillSlot1Button;
-        [SerializeField] private Text? skillSlot1StatusText;
+        [SerializeField] private TMP_Text? skillSlot1StatusText;
         [SerializeField] private Image? skillSlot1IconImage;
         [SerializeField] private Button? skillSlot2Button;
-        [SerializeField] private Text? skillSlot2StatusText;
+        [SerializeField] private TMP_Text? skillSlot2StatusText;
         [SerializeField] private Image? skillSlot2IconImage;
 
         [Header("Совместимость со старыми сценами (если слоты не заданы)")]
         [SerializeField] private Button? giantCirclesButton;
-        [SerializeField] private Text? giantCirclesStatusText;
+        [SerializeField] private TMP_Text? giantCirclesStatusText;
         [SerializeField] private Button? redDeceptionButton;
-        [SerializeField] private Text? redDeceptionStatusText;
+        [SerializeField] private TMP_Text? redDeceptionStatusText;
         [SerializeField] private Button? smokeVeilButton;
-        [SerializeField] private Text? smokeVeilStatusText;
+        [SerializeField] private TMP_Text? smokeVeilStatusText;
 
         [Header("Дебаффы от соперника (отдельно от кнопок)")]
-        [SerializeField] private Text? incomingDebuffHintText;
+        [SerializeField] private TMP_Text? incomingDebuffHintText;
 
         [Header("Энергия скиллов")]
         [SerializeField] private Image? skillEnergyFill;
-        [SerializeField] private Text? skillEnergyText;
+        [SerializeField] private TMP_Text? skillEnergyText;
         [SerializeField] private Color skillOnCooldownDimColor = new(0.52f, 0.52f, 0.55f, 1f);
         [SerializeField] [Range(0f, 1f)] private float cooldownDimBlend = 0.42f;
         [SerializeField] private Color cooldownRadialTint = new(0.1f, 0.1f, 0.12f, 0.78f);
 
         [Header("Онлайн: уведомление о скилле соперника")]
-        [SerializeField] private Text? opponentSkillNoticeText;
+        [SerializeField] private TMP_Text? opponentSkillNoticeText;
 
         private readonly Button[] _buttons = new Button[3];
-        private readonly Text?[] _statusTexts = new Text?[3];
+        private readonly TMP_Text?[] _statusTexts = new TMP_Text?[3];
         private readonly Image?[] _iconImages = new Image?[3];
         private readonly Image?[] _overlays = new Image?[3];
         private readonly Color[] _graphicColors = new Color[3];
@@ -64,6 +65,13 @@ namespace TapBrawl.UI
         {
             if (match == null)
                 match = FindFirstObjectByType<MatchController>();
+
+            if (skillSlot0Button == null && match != null)
+            {
+                var canvas = FindFirstObjectByType<Canvas>();
+                if (canvas != null)
+                    BindFromScene(match, canvas.transform);
+            }
 
             _buttons[0] = skillSlot0Button != null ? skillSlot0Button : giantCirclesButton;
             _buttons[1] = skillSlot1Button != null ? skillSlot1Button : redDeceptionButton;
@@ -139,17 +147,82 @@ namespace TapBrawl.UI
             rt.offsetMin = Vector2.zero;
             rt.offsetMax = Vector2.zero;
 
-            var tx = go.AddComponent<Text>();
-            var fontRef = skillSlot0StatusText != null
-                ? skillSlot0StatusText.font
-                : Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            tx.font = fontRef;
-            tx.fontSize = skillSlot0StatusText != null ? Mathf.Clamp(skillSlot0StatusText.fontSize, 20, 30) : 24;
-            tx.alignment = TextAnchor.MiddleCenter;
-            tx.color = new Color(1f, 0.88f, 0.25f, 1f);
+            var tx = go.AddComponent<TextMeshProUGUI>();
+            if (TMP_Settings.defaultFontAsset != null)
+                tx.font = TMP_Settings.defaultFontAsset;
+            tx.fontSize = MatchHudStyle.NoticeFontSize;
+            tx.alignment = TextAlignmentOptions.Center;
+            tx.color = MatchHudStyle.NoticeText;
             tx.raycastTarget = false;
             tx.text = string.Empty;
             opponentSkillNoticeText = tx;
+        }
+
+        /// <summary>Привязка ссылок после синхронизации HUD (редактор / <see cref="MatchHudLayoutApplier"/>).</summary>
+        public void BindFromScene(MatchController matchController, Transform canvasRoot)
+        {
+            match = matchController;
+            var skillBar = transform;
+            skillSlot0Button = FindButton(skillBar, "SkillGiantCircles");
+            skillSlot1Button = FindButton(skillBar, "SkillRedDeception");
+            skillSlot2Button = FindButton(skillBar, "SkillSmokeVeil");
+            skillSlot0IconImage = FindImage(skillBar, "SkillGiantCircles");
+            skillSlot1IconImage = FindImage(skillBar, "SkillRedDeception");
+            skillSlot2IconImage = FindImage(skillBar, "SkillSmokeVeil");
+            skillSlot0StatusText = FindTmpInChild(skillBar, "SkillGiantCircles", "Text");
+            skillSlot1StatusText = FindTmpInChild(skillBar, "SkillRedDeception", "Text");
+            skillSlot2StatusText = FindTmpInChild(skillBar, "SkillSmokeVeil", "Text");
+            giantCirclesButton = skillSlot0Button;
+            redDeceptionButton = skillSlot1Button;
+            smokeVeilButton = skillSlot2Button;
+            giantCirclesStatusText = skillSlot0StatusText;
+            redDeceptionStatusText = skillSlot1StatusText;
+            smokeVeilStatusText = skillSlot2StatusText;
+
+            var energyFillGo = FindDeep(skillBar, "EnergyBar_Fill");
+            skillEnergyFill = energyFillGo != null ? energyFillGo.GetComponent<Image>() : null;
+            var energyTextGo = FindDeep(skillBar, MatchHudLayoutApplier.EnergyTextName);
+            skillEnergyText = energyTextGo != null ? energyTextGo.GetComponent<TMP_Text>() : null;
+
+            foreach (var t in canvasRoot.GetComponentsInChildren<Transform>(true))
+            {
+                if (t.name == "OpponentSkillNoticeText")
+                    opponentSkillNoticeText = t.GetComponent<TMP_Text>();
+            }
+
+            if (skillCatalog == null && matchController != null)
+                skillCatalog = matchController.SkillCatalogAsset;
+        }
+
+        private static Button? FindButton(Transform root, string slotName)
+        {
+            var slot = FindDeep(root, slotName);
+            return slot != null ? slot.GetComponent<Button>() : null;
+        }
+
+        private static Image? FindImage(Transform root, string slotName)
+        {
+            var slot = FindDeep(root, slotName);
+            return slot != null ? slot.GetComponent<Image>() : null;
+        }
+
+        private static TMP_Text? FindTmpInChild(Transform root, string slotName, string childName)
+        {
+            var slot = FindDeep(root, slotName);
+            if (slot == null)
+                return null;
+            var child = slot.Find(childName);
+            return child != null ? child.GetComponent<TMP_Text>() : null;
+        }
+
+        private static Transform? FindDeep(Transform root, string name)
+        {
+            foreach (var t in root.GetComponentsInChildren<Transform>(true))
+            {
+                if (t.name == name)
+                    return t;
+            }
+            return null;
         }
 
         private void OnOpponentVisualSkillFromNetwork(int skillType)

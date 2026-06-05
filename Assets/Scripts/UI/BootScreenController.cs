@@ -17,6 +17,7 @@ namespace TapBrawl.UI
         [SerializeField] private string lobbySceneName = "Lobby";
         [SerializeField] private string authSceneName = "Auth";
         [SerializeField] private Text? statusText;
+        [SerializeField] private UpdateRequiredModal? updateRequiredModal;
 
         private async void Start()
         {
@@ -28,8 +29,18 @@ namespace TapBrawl.UI
 
             try
             {
-                LogStatus("Подключение...");
+                LogStatus("Проверка версии...");
                 var api = new ApiClient(backendConfig);
+                var versionCheck = await ClientVersionChecker.TryCheckAsync(api, CancellationToken.None)
+                    .ConfigureAwait(true);
+                if (versionCheck is { UpdateRequired: true } check)
+                {
+                    LogStatus("Требуется обновление.");
+                    ShowUpdateRequired(check);
+                    return;
+                }
+
+                LogStatus("Подключение...");
                 var auth = new AuthManager(api);
                 if (await auth.TryRestoreSessionAsync(CancellationToken.None).ConfigureAwait(true))
                 {
@@ -48,6 +59,25 @@ namespace TapBrawl.UI
                 LogStatus("Ошибка: " + ex.Message);
                 Debug.LogException(ex);
             }
+        }
+
+        private void ShowUpdateRequired(ClientVersionCheckResult check)
+        {
+            var modal = updateRequiredModal ?? FindFirstObjectByType<UpdateRequiredModal>(FindObjectsInactive.Include);
+            if (modal == null)
+            {
+                var canvas = FindFirstObjectByType<Canvas>();
+                if (canvas != null)
+                    modal = UpdateRequiredModal.EnsureOnCanvas(canvas.transform);
+            }
+
+            if (modal == null)
+            {
+                LogStatus($"Обновите приложение до {check.MinSupportedVersion}.");
+                return;
+            }
+
+            modal.Show(check.MinSupportedVersion, check.CurrentVersion, check.StoreUrl);
         }
 
         private void LogStatus(string message)

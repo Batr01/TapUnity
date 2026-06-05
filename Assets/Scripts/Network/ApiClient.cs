@@ -147,6 +147,9 @@ namespace TapBrawl.Network
         public Task<ApiResult<MatchmakingStatusDto>> MatchmakingStatusAsync(string bearer, CancellationToken ct = default) =>
             GetJsonAsync<MatchmakingStatusDto>("/api/v1/matchmaking/status", bearer, ct);
 
+        public Task<ApiResult<ClientConfigDto>> GetConfigAsync(CancellationToken ct = default) =>
+            GetJsonAsync<ClientConfigDto>("/api/v1/config", null, ct);
+
         public async Task<ApiResult<T>> GetJsonAsync<T>(string path, string bearer, CancellationToken ct = default)
         {
             var url = _baseUrl + path;

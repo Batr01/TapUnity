@@ -8,6 +8,8 @@ using TapBrawl.Core.Skills;
 using TapBrawl.Core.VFX;
 using TapBrawl.Models;
 using TapBrawl.Network;
+using TapBrawl.UI;
+using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -23,10 +25,10 @@ namespace TapBrawl.Core
         [SerializeField] private CircleSpawner spawner = null!;
         [SerializeField] private int durationSec = 75;
         [SerializeField] private uint trainingSeed = 42;
-        [SerializeField] private Text scoreLabel = null!;
-        [SerializeField] private Text timerLabel = null!;
-        [SerializeField] private Text? opponentLabel;
-        [SerializeField] private Text? modeLabel;
+        [SerializeField] private TMP_Text? scoreLabel;
+        [SerializeField] private TMP_Text? timerLabel;
+        [SerializeField] private TMP_Text? opponentLabel;
+        [SerializeField] private TMP_Text? modeLabel;
         [SerializeField] private string resultSceneName = "Result";
 
         [Header("Скилл (тест): крупные круги")]
@@ -37,6 +39,8 @@ namespace TapBrawl.Core
         [SerializeField] private float opponentSmokeVeilDurationSec = 5f;
         [Header("Каталог скиллов (иконки, VFX, loop-звуки)")]
         [SerializeField] private SkillCatalog? skillCatalog;
+
+        public SkillCatalog? SkillCatalogAsset => skillCatalog;
         [Header("Отладка (онлайн)")]
         [Tooltip(
             "В онлайне скиллы 2–3 по сети приходят событием от сервера: без второго клиента эффект у вас не появится. " +
@@ -535,6 +539,38 @@ namespace TapBrawl.Core
                 _bubbleHitAudioResolved = gameObject.AddComponent<AudioSource>();
                 _bubbleHitAudioResolved.playOnAwake = false;
             }
+
+            ResolveHudLabelsIfNeeded();
+        }
+
+        public void BindHudLabels(Transform canvasRoot)
+        {
+            scoreLabel = FindHudLabel(canvasRoot, "ScoreText") ?? scoreLabel;
+            timerLabel = FindHudLabel(canvasRoot, "TimerText") ?? timerLabel;
+            modeLabel = FindHudLabel(canvasRoot, "ModeLabel") ?? modeLabel;
+            opponentLabel = FindHudLabel(canvasRoot, "Opponent Label") ?? opponentLabel;
+        }
+
+        private void ResolveHudLabelsIfNeeded()
+        {
+            if (scoreLabel != null && timerLabel != null)
+                return;
+            var canvas = FindFirstObjectByType<Canvas>();
+            if (canvas != null)
+                BindHudLabels(canvas.transform);
+        }
+
+        private static TMP_Text? FindHudLabel(Transform root, string objectName)
+        {
+            foreach (var t in root.GetComponentsInChildren<Transform>(true))
+            {
+                if (t.name != objectName)
+                    continue;
+                var tmp = t.GetComponent<TextMeshProUGUI>();
+                if (tmp != null)
+                    return tmp;
+            }
+            return null;
         }
 
         private void Start()
@@ -1044,8 +1080,7 @@ namespace TapBrawl.Core
 
         private IEnumerator ScoreDeltaPopupRoutine(RectTransform parent, Vector2 startAnchored, int delta)
         {
-            var font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            var go = new GameObject("ScoreDeltaPopup", typeof(RectTransform), typeof(Text));
+            var go = new GameObject("ScoreDeltaPopup", typeof(RectTransform), typeof(TextMeshProUGUI));
             go.transform.SetParent(parent, false);
             var rt = go.GetComponent<RectTransform>();
             rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
@@ -1054,11 +1089,12 @@ namespace TapBrawl.Core
             rt.sizeDelta = new Vector2(200f, 80f);
             rt.SetAsLastSibling();
 
-            var tx = go.GetComponent<Text>();
-            tx.font = font;
+            var tx = go.GetComponent<TextMeshProUGUI>();
+            if (TMP_Settings.defaultFontAsset != null)
+                tx.font = TMP_Settings.defaultFontAsset;
             tx.fontSize = scorePopupFontSize;
-            tx.fontStyle = FontStyle.Bold;
-            tx.alignment = TextAnchor.MiddleCenter;
+            tx.fontStyle = FontStyles.Bold;
+            tx.alignment = TextAlignmentOptions.Center;
             tx.text = delta > 0 ? $"+{delta}" : $"{delta}";
             tx.color = delta > 0 ? scorePopupPositiveColor : scorePopupNegativeColor;
             tx.raycastTarget = false;

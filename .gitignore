@@ -78,6 +78,8 @@ InitTestScene*.unity*
 .vscode/
 .idea/
 .vsconfig
+*.code-workspace
+ProjectSettings/Packages/com.unity.ai.assistant/
 
 # Local Plastic SCM workspace metadata
 .plastic/
