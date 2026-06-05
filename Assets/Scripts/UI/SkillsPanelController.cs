@@ -32,6 +32,8 @@ namespace TapBrawl.UI
 
         private PlayerSkillsStateDto? _lastState;
         private SkillLoadoutPickModalController? _loadoutPickModal;
+        private ApiClient? _api;
+        private bool _upgradeInProgress;
 
         private void Awake()
         {
@@ -92,8 +94,7 @@ namespace TapBrawl.UI
             if (session == null || backendConfig == null)
                 return;
 
-            var api = new ApiClient(backendConfig);
-            var res = await api.PlayersMeSkillsAsync(session.AccessToken).ConfigureAwait(true);
+            var res = await GetApi().PlayersMeSkillsAsync(session.AccessToken).ConfigureAwait(true);
             if (!res.Success || res.Data == null)
                 return;
 
@@ -174,8 +175,7 @@ namespace TapBrawl.UI
                 return;
             }
 
-            var api = new ApiClient(backendConfig);
-            var res = await api.PlayersMeSkillsAsync(session.AccessToken, ct).ConfigureAwait(true);
+            var res = await GetApi().PlayersMeSkillsAsync(session.AccessToken, ct).ConfigureAwait(true);
             if (!res.Success || res.Data == null)
             {
                 SetStatus($"Скиллы: HTTP {res.StatusCode} {res.ErrorBody}");
@@ -215,28 +215,50 @@ namespace TapBrawl.UI
 
         private async Task UpgradeClickedAsync(int skillId)
         {
+            if (_upgradeInProgress)
+                return;
+
             var session = AuthContext.Current;
             if (session == null || backendConfig == null)
                 return;
 
             var current = _lastState?.Skills.FirstOrDefault(x => x.SkillId == skillId);
-            if (current != null && current.NextUpgradeCostCoins > session.Player.Coins)
+            if (current == null)
+                return;
+
+            if (current.NextUpgradeCostCoins > session.Player.Coins)
             {
                 SetStatus("Недостаточно монет.");
                 return;
             }
 
-            var api = new ApiClient(backendConfig);
-            var res = await api.PlayersMeSkillsUpgradeAsync(session.AccessToken, skillId, CancellationToken.None)
-                .ConfigureAwait(true);
-            if (!res.Success || res.Data == null)
-            {
-                SetStatus($"Апгрейд: HTTP {res.StatusCode} {res.ErrorBody}");
+            if (current.Level >= SkillBalance.MaxLevel || current.NextUpgradeCostCoins <= 0)
                 return;
-            }
 
-            ApplyState(res.Data, session);
-            SetStatus($"Прокачено. Монеты: {res.Data.Coins}");
+            var rollback = CloneState(_lastState!);
+            ApplyOptimisticUpgrade(skillId, current.NextUpgradeCostCoins, session);
+            _upgradeInProgress = true;
+            SetUpgradeButtonsInteractable(false);
+
+            try
+            {
+                var res = await GetApi().PlayersMeSkillsUpgradeAsync(session.AccessToken, skillId, CancellationToken.None)
+                    .ConfigureAwait(true);
+                if (!res.Success || res.Data == null)
+                {
+                    ApplyState(rollback, session);
+                    SetStatus($"Апгрейд: HTTP {res.StatusCode} {res.ErrorBody}");
+                    return;
+                }
+
+                ApplyState(res.Data, session);
+                SetStatus($"Прокачено. Монеты: {res.Data.Coins}");
+            }
+            finally
+            {
+                _upgradeInProgress = false;
+                RebindUpgradeRowsFromState();
+            }
         }
 
         private void OnSaveLoadoutClicked() => _ = SaveLoadoutClickedAsync();
@@ -270,8 +292,7 @@ namespace TapBrawl.UI
                 return;
             }
 
-            var api = new ApiClient(backendConfig);
-            var res = await api.PlayersMeSkillsLoadoutAsync(session.AccessToken, ids, CancellationToken.None)
+            var res = await GetApi().PlayersMeSkillsLoadoutAsync(session.AccessToken, ids, CancellationToken.None)
                 .ConfigureAwait(true);
             if (!res.Success || res.Data == null)
             {
@@ -281,6 +302,63 @@ namespace TapBrawl.UI
 
             ApplyState(res.Data, session);
             SetStatus("Лоадаут сохранён.");
+        }
+
+        private ApiClient GetApi() => _api ??= new ApiClient(backendConfig!);
+
+        private void ApplyOptimisticUpgrade(int skillId, int cost, AuthSession session)
+        {
+            if (_lastState == null)
+                return;
+
+            _lastState.Coins -= cost;
+            var skill = _lastState.Skills.FirstOrDefault(x => x.SkillId == skillId);
+            if (skill == null)
+                return;
+
+            skill.Level++;
+            skill.NextUpgradeCostCoins = skill.Level >= SkillBalance.MaxLevel
+                ? 0
+                : SkillBalance.UpgradeCostCoins(skillId, skill.Level);
+
+            ApplyState(_lastState, session);
+            SetStatus("Прокачка…");
+        }
+
+        private static PlayerSkillsStateDto CloneState(PlayerSkillsStateDto src) =>
+            new()
+            {
+                Coins = src.Coins,
+                Skills = src.Skills.ConvertAll(s => new PlayerSkillStateItemDto
+                {
+                    SkillId = s.SkillId,
+                    Level = s.Level,
+                    NextUpgradeCostCoins = s.NextUpgradeCostCoins,
+                }),
+                LoadoutSlotSkillIds = new List<int>(src.LoadoutSlotSkillIds),
+            };
+
+        private void SetUpgradeButtonsInteractable(bool interactable)
+        {
+            foreach (var row in skillRows)
+            {
+                if (row?.UpgradeButton != null)
+                    row.UpgradeButton.interactable = interactable;
+            }
+        }
+
+        private void RebindUpgradeRowsFromState()
+        {
+            if (_lastState == null)
+                return;
+
+            var byId = _lastState.Skills.ToDictionary(x => x.SkillId, x => x);
+            foreach (var row in skillRows)
+            {
+                if (row == null || !byId.TryGetValue(row.SkillId, out var skill))
+                    continue;
+                row.Bind(skill.Level, skill.NextUpgradeCostCoins, _lastState.Coins >= skill.NextUpgradeCostCoins);
+            }
         }
 
         private void SetStatus(string msg)

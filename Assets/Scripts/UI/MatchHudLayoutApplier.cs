@@ -241,6 +241,8 @@ namespace TapBrawl.UI
 
             EnsureSkillEnergyText(skillBar);
 
+            PlaceOpenPinButtonInSkillBar(skillBar);
+
             var slotNames = new[] { "SkillGiantCircles", "SkillRedDeception", "SkillSmokeVeil" };
             var slotX = new[] { -112f, 0f, 112f };
             for (var i = 0; i < slotNames.Length; i++)
@@ -283,17 +285,39 @@ namespace TapBrawl.UI
             EnsureTmp(go, MatchHudStyle.EnergyFontSize, MatchHudStyle.AccentText, TextAlignmentOptions.Center);
         }
 
+        private static void PlaceOpenPinButtonInSkillBar(RectTransform skillBar)
+        {
+            var openBtn = FindDeep(skillBar.parent, "OpenPinPanelButton");
+            if (openBtn == null)
+                return;
+
+            openBtn.SetParent(skillBar, false);
+            openBtn.SetAsFirstSibling();
+            openBtn.anchorMin = new Vector2(0f, 0.5f);
+            openBtn.anchorMax = new Vector2(0f, 0.5f);
+            openBtn.pivot = new Vector2(0f, 0.5f);
+            openBtn.anchoredPosition = new Vector2(16f, -36f);
+            openBtn.sizeDelta = new Vector2(MatchHudStyle.SkillSlotSize, MatchHudStyle.SkillSlotSize);
+            openBtn.localScale = Vector3.one;
+
+            var img = openBtn.GetComponent<Image>();
+            if (img != null)
+                img.color = Color.white;
+        }
+
         private static void ReparentPinBar(Transform canvas, RectTransform pinBar)
         {
-            if (pinBar.parent == canvas)
-                return;
-            pinBar.SetParent(canvas, false);
-            pinBar.SetAsLastSibling();
+            if (pinBar.parent != canvas)
+            {
+                pinBar.SetParent(canvas, false);
+                pinBar.SetAsLastSibling();
+            }
+
             pinBar.anchorMin = new Vector2(0f, 0f);
             pinBar.anchorMax = new Vector2(0f, 0f);
             pinBar.pivot = new Vector2(0f, 0f);
-            pinBar.anchoredPosition = new Vector2(24f, MatchHudStyle.SkillBarHeight + 24f);
-            pinBar.sizeDelta = new Vector2(120f, 120f);
+            pinBar.anchoredPosition = Vector2.zero;
+            pinBar.sizeDelta = Vector2.zero;
         }
 
         private static void StylePinPanels(Transform canvas)
@@ -304,7 +328,7 @@ namespace TapBrawl.UI
                 picker.anchorMin = new Vector2(0f, 0f);
                 picker.anchorMax = new Vector2(0f, 0f);
                 picker.pivot = new Vector2(0f, 0f);
-                picker.anchoredPosition = new Vector2(140f, MatchHudStyle.SkillBarHeight + 40f);
+                picker.anchoredPosition = new Vector2(16f, MatchHudStyle.SkillBarHeight + 40f);
                 picker.sizeDelta = new Vector2(120f, 360f);
                 var childImg = picker.Find("Image")?.GetComponent<Image>();
                 if (childImg != null)

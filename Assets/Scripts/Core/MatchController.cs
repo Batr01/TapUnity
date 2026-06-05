@@ -710,14 +710,16 @@ namespace TapBrawl.Core
             var canvas = FindFirstObjectByType<Canvas>();
             if (canvas == null)
                 return;
-            var go = new GameObject("CountdownOverlay", typeof(RectTransform), typeof(TMP_Text));
+            var go = new GameObject("CountdownOverlay", typeof(RectTransform), typeof(TextMeshProUGUI));
             go.transform.SetParent(canvas.transform, false);
             var rt = go.GetComponent<RectTransform>();
             rt.anchorMin = new Vector2(0f, 0f);
             rt.anchorMax = new Vector2(1f, 1f);
             rt.offsetMin = Vector2.zero;
             rt.offsetMax = Vector2.zero;
-            _countdownLabel = go.GetComponent<TMP_Text>();
+            _countdownLabel = go.GetComponent<TextMeshProUGUI>();
+            if (_countdownLabel == null)
+                return;
             _countdownLabel.fontSize = 180;
             _countdownLabel.alignment = TextAlignmentOptions.Center;
             _countdownLabel.color = Color.white;
@@ -770,14 +772,16 @@ namespace TapBrawl.Core
             var canvas = FindFirstObjectByType<Canvas>();
             if (canvas == null)
                 return;
-            var go = new GameObject("PostGameOverlay", typeof(RectTransform), typeof(TMP_Text));
+            var go = new GameObject("PostGameOverlay", typeof(RectTransform), typeof(TextMeshProUGUI));
             go.transform.SetParent(canvas.transform, false);
             var rt = go.GetComponent<RectTransform>();
             rt.anchorMin = new Vector2(0f, 0.35f);
             rt.anchorMax = new Vector2(1f, 0.65f);
             rt.offsetMin = Vector2.zero;
             rt.offsetMax = Vector2.zero;
-            _postGameLabel = go.GetComponent<TMP_Text>();
+            _postGameLabel = go.GetComponent<TextMeshProUGUI>();
+            if (_postGameLabel == null)
+                return;
             _postGameLabel.fontSize = 52;
             _postGameLabel.alignment = TextAlignmentOptions.Center;
             _postGameLabel.color = Color.white;
