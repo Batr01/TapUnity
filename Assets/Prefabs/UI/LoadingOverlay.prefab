@@ -302,6 +302,12 @@ MonoBehaviour:
   statusText: {fileID: 8580838276025458863}
   spinner: {fileID: 8511164974593511872}
   spinnerSpeed: 220
+  indicatorStyle: 0
+  circleFxConfig: {fileID: 11400000, guid: cb604ca1a16af7a4a89171ebfafc9abe, type: 2}
+  explodingBallsRoot: {fileID: 0}
+  firstExplosionDelay: 0.45
+  explosionInterval: 0.36
+  explosionResetDelay: 0.62
 --- !u!1 &4037167967413886187
 GameObject:
   m_ObjectHideFlags: 0

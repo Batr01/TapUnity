@@ -443,6 +443,8 @@ MonoBehaviour:
   lobbySceneName: Lobby
   authSceneName: Auth
   statusText: {fileID: 1614854964}
+  updateRequiredModal: {fileID: 0}
+  loadingOverlay: {fileID: 0}
 --- !u!4 &1387401468
 Transform:
   m_ObjectHideFlags: 0
@@ -475,7 +477,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &1614854963
 RectTransform:
   m_ObjectHideFlags: 0

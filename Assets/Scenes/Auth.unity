@@ -5086,7 +5086,8 @@ MonoBehaviour:
   panelProviders: {fileID: 2006883610}
   panelLogin: {fileID: 2139662099}
   panelRegister: {fileID: 8936856}
-  busyOverlay: {fileID: 1616838693}
+  loadingOverlay: {fileID: 0}
+  circleFxConfig: {fileID: 11400000, guid: cb604ca1a16af7a4a89171ebfafc9abe, type: 2}
   errorText: {fileID: 789636112}
   loginEmail: {fileID: 1279186405}
   loginPassword: {fileID: 347099324}

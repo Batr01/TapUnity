@@ -19,6 +19,8 @@ namespace TapBrawl.Editor
         private const string IconGooglePath = "Assets/Art/Sprites/icon-google.png";
         private const string IconApplePath = "Assets/Art/Sprites/icon-apple-logo.png";
         private const string IconGuestPath = "Assets/Art/Sprites/icon-guest.png";
+        private const string LoadingOverlayPrefabPath = "Assets/Prefabs/UI/LoadingOverlay.prefab";
+        private const string CircleFxConfigPath = "Assets/ScriptableObjects/DefaultSpawnConfig.asset";
 
         [MenuItem("Tap/Setup Auth Screen UI")]
         public static void SetupAuthScreenUi()
@@ -39,7 +41,7 @@ namespace TapBrawl.Editor
 
             if (!EditorUtility.DisplayDialog(
                     "Auth UI",
-                    "Создать стандартную разметку экрана входа на Canvas?\nСуществующие дочерние объекты Root/Busy будут удалены.",
+                    "Создать стандартную разметку экрана входа на Canvas?\nСуществующие дочерние объекты Root/LoadingOverlay будут удалены.",
                     "Создать",
                     "Отмена"))
                 return;
@@ -49,6 +51,7 @@ namespace TapBrawl.Editor
 
             RemoveIfExists(canvas.transform, "Root");
             RemoveIfExists(canvas.transform, "Busy");
+            RemoveIfExists(canvas.transform, "LoadingOverlay");
 
             var root = CreateStretchPanel(canvas.transform, "Root");
             var rootLayout = root.gameObject.AddComponent<VerticalLayoutGroup>();
@@ -70,21 +73,14 @@ namespace TapBrawl.Editor
             var panelLogin = CreateLoginPanel(root);
             var panelRegister = CreateRegisterPanel(root);
 
-            var busyOverlay = new GameObject("Busy", typeof(RectTransform), typeof(Image));
-            busyOverlay.transform.SetParent(canvas.transform, false);
-            StretchFull(busyOverlay.GetComponent<RectTransform>());
-            busyOverlay.GetComponent<Image>().color = new Color(0, 0, 0, 0.5f);
-            var busyText = CreateText(busyOverlay.GetComponent<RectTransform>(), "BusyText", "Подождите…", 26, Color.white, 40);
-            StretchFull(busyText.rectTransform);
-            busyOverlay.SetActive(false);
-            Undo.RegisterCreatedObjectUndo(busyOverlay, "Auth Busy");
+            var loadingOverlay = EnsureLoadingOverlay(canvas.transform);
 
             WireController(
                 controller,
                 panelProviders,
                 panelLogin,
                 panelRegister,
-                busyOverlay,
+                loadingOverlay,
                 errorText);
 
             EditorSceneManager.MarkSceneDirty(controller.gameObject.scene);
@@ -98,14 +94,16 @@ namespace TapBrawl.Editor
             ProvidersPanelRefs providers,
             LoginPanelRefs login,
             RegisterPanelRefs register,
-            GameObject busyOverlay,
+            LoadingOverlay loadingOverlay,
             Text errorText)
         {
             var so = new SerializedObject(controller);
             so.FindProperty("panelProviders").objectReferenceValue = providers.Root;
             so.FindProperty("panelLogin").objectReferenceValue = login.Root;
             so.FindProperty("panelRegister").objectReferenceValue = register.Root;
-            so.FindProperty("busyOverlay").objectReferenceValue = busyOverlay;
+            so.FindProperty("loadingOverlay").objectReferenceValue = loadingOverlay;
+            so.FindProperty("circleFxConfig").objectReferenceValue =
+                AssetDatabase.LoadAssetAtPath<TapBrawl.Core.CircleSpawnConfig>(CircleFxConfigPath);
             so.FindProperty("errorText").objectReferenceValue = errorText;
             so.FindProperty("loginEmail").objectReferenceValue = login.Email;
             so.FindProperty("loginPassword").objectReferenceValue = login.Password;
@@ -124,6 +122,18 @@ namespace TapBrawl.Editor
             so.FindProperty("guestButton").objectReferenceValue = providers.Guest;
             so.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(controller);
+        }
+
+        private static LoadingOverlay EnsureLoadingOverlay(Transform canvasTransform)
+        {
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(LoadingOverlayPrefabPath);
+            if (prefab == null)
+                throw new System.InvalidOperationException($"Не найден префаб: {LoadingOverlayPrefabPath}");
+
+            var instance = (GameObject)PrefabUtility.InstantiatePrefab(prefab, canvasTransform);
+            Undo.RegisterCreatedObjectUndo(instance, "Auth LoadingOverlay");
+            instance.SetActive(false);
+            return instance.GetComponent<LoadingOverlay>();
         }
 
         private static void RemoveIfExists(Transform parent, string name)

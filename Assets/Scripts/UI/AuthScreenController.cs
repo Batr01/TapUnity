@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using TapBrawl.Core;
 using TapBrawl.Network;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -21,7 +22,8 @@ namespace TapBrawl.UI
         [SerializeField] private GameObject? panelProviders;
         [SerializeField] private GameObject? panelLogin;
         [SerializeField] private GameObject? panelRegister;
-        [SerializeField] private GameObject? busyOverlay;
+        [SerializeField] private LoadingOverlay? loadingOverlay;
+        [SerializeField] private CircleSpawnConfig? circleFxConfig;
         [SerializeField] private Text? errorText;
 
         [Header("Вход")]
@@ -249,8 +251,44 @@ namespace TapBrawl.UI
 
         private void SetBusy(bool busy)
         {
-            if (busyOverlay != null)
-                busyOverlay.SetActive(busy);
+            var overlay = ResolveLoadingOverlay();
+            if (overlay == null)
+                return;
+
+            if (busy)
+                overlay.ShowAnimationOnly();
+            else
+                overlay.Hide();
+        }
+
+        private LoadingOverlay? ResolveLoadingOverlay()
+        {
+            if (loadingOverlay != null)
+            {
+                ApplyFxConfig(loadingOverlay);
+                return loadingOverlay;
+            }
+
+            loadingOverlay = FindFirstObjectByType<LoadingOverlay>(FindObjectsInactive.Include);
+            if (loadingOverlay != null)
+            {
+                ApplyFxConfig(loadingOverlay);
+                return loadingOverlay;
+            }
+
+            var canvas = FindFirstObjectByType<Canvas>();
+            if (canvas == null)
+                return null;
+
+            loadingOverlay = LoadingOverlay.EnsureOnCanvas(canvas.transform);
+            ApplyFxConfig(loadingOverlay);
+            return loadingOverlay;
+        }
+
+        private void ApplyFxConfig(LoadingOverlay overlay)
+        {
+            if (circleFxConfig != null)
+                overlay.SetFxConfig(circleFxConfig);
         }
     }
 }

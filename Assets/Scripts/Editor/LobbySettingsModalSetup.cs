@@ -77,6 +77,8 @@ namespace TapBrawl.Editor
             var header = CreateHeader(panel.transform);
             var titleText = CreateTitleText(header.transform);
             CreateBackButton(header.transform);
+            var actions = CreateActions(panel.transform);
+            var logoutButton = CreateLogoutButton(actions.transform);
             var messageText = CreateMessageText(panel.transform);
 
             var toggle = modal.GetComponent<UiPanelToggle>();
@@ -89,6 +91,7 @@ namespace TapBrawl.Editor
             var viewSo = new SerializedObject(view);
             viewSo.FindProperty("titleText").objectReferenceValue = titleText;
             viewSo.FindProperty("messageText").objectReferenceValue = messageText;
+            viewSo.FindProperty("logoutButton").objectReferenceValue = logoutButton;
             viewSo.ApplyModifiedPropertiesWithoutUndo();
 
             RewireBackButton(modal, toggle);
@@ -157,13 +160,70 @@ namespace TapBrawl.Editor
             go.GetComponent<Button>().targetGraphic = img;
         }
 
+        private static GameObject CreateActions(Transform panel)
+        {
+            var go = new GameObject("Actions", typeof(RectTransform), typeof(VerticalLayoutGroup));
+            go.transform.SetParent(panel, false);
+            go.transform.SetSiblingIndex(1);
+
+            var rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = new Vector2(0.08f, 0.45f);
+            rt.anchorMax = new Vector2(0.92f, 0.82f);
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
+
+            var layout = go.GetComponent<VerticalLayoutGroup>();
+            layout.padding = new RectOffset(0, 0, 8, 8);
+            layout.spacing = 12f;
+            layout.childAlignment = TextAnchor.UpperCenter;
+            layout.childControlWidth = true;
+            layout.childControlHeight = true;
+            layout.childForceExpandWidth = true;
+            layout.childForceExpandHeight = false;
+            return go;
+        }
+
+        private static Button CreateLogoutButton(Transform actions)
+        {
+            return CreateActionButton(actions, "Logout Button", "Выйти из аккаунта", new Color(0.55f, 0.22f, 0.22f, 1f));
+        }
+
+        private static Button CreateActionButton(Transform parent, string name, string label, Color bgColor)
+        {
+            const float height = 72f;
+            var go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button), typeof(LayoutElement));
+            go.transform.SetParent(parent, false);
+
+            var layoutElement = go.GetComponent<LayoutElement>();
+            layoutElement.minHeight = height;
+            layoutElement.preferredHeight = height;
+
+            var image = go.GetComponent<Image>();
+            image.color = bgColor;
+
+            var button = go.GetComponent<Button>();
+            button.targetGraphic = image;
+
+            var labelGo = new GameObject("Label", typeof(RectTransform), typeof(Text));
+            labelGo.transform.SetParent(go.transform, false);
+            var labelRt = labelGo.GetComponent<RectTransform>();
+            labelRt.anchorMin = Vector2.zero;
+            labelRt.anchorMax = Vector2.one;
+            labelRt.offsetMin = Vector2.zero;
+            labelRt.offsetMax = Vector2.zero;
+
+            var text = labelGo.GetComponent<Text>();
+            ConfigureText(text, label, 32, FontStyle.Normal, TextAnchor.MiddleCenter);
+            return button;
+        }
+
         private static Text CreateMessageText(Transform panel)
         {
             var go = new GameObject("Message Text", typeof(RectTransform), typeof(Text));
             go.transform.SetParent(panel, false);
             var rt = go.GetComponent<RectTransform>();
-            rt.anchorMin = new Vector2(0.1f, 0.35f);
-            rt.anchorMax = new Vector2(0.9f, 0.65f);
+            rt.anchorMin = new Vector2(0.1f, 0.12f);
+            rt.anchorMax = new Vector2(0.9f, 0.38f);
             rt.offsetMin = Vector2.zero;
             rt.offsetMax = Vector2.zero;
             var text = go.GetComponent<Text>();

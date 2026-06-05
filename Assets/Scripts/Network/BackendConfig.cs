@@ -27,6 +27,16 @@ namespace TapBrawl.Network
         [SerializeField]
         private string googleIosClientId = string.Empty;
 
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        // TODO: убрать после теста LoadingOverlay — задержка перед каждым HTTP-запросом (0 = выкл).
+        [Header("TODO: убрать после теста загрузки")]
+        [Tooltip("Искусственная задержка перед каждым HTTP-запросом, мс. Поставьте 2000–5000 для проверки оверлея.")]
+        [SerializeField]
+        private int devSimulateRequestDelayMs = 3000;
+
+        public int DevSimulateRequestDelayMs => Mathf.Max(0, devSimulateRequestDelayMs);
+#endif
+
         public string BaseUrl
         {
             get

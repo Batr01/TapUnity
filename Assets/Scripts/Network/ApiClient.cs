@@ -29,11 +29,13 @@ namespace TapBrawl.Network
     public sealed class ApiClient
     {
         private readonly string _baseUrl;
+        private readonly BackendConfig _config;
 
         public ApiClient(BackendConfig config)
         {
             if (config == null)
                 throw new ArgumentNullException(nameof(config));
+            _config = config;
             _baseUrl = config.BaseUrl;
         }
 
@@ -152,6 +154,7 @@ namespace TapBrawl.Network
 
         public async Task<ApiResult<T>> GetJsonAsync<T>(string path, string bearer, CancellationToken ct = default)
         {
+            await ApplyDevRequestDelayAsync(ct);
             var url = _baseUrl + path;
             using var req = UnityWebRequest.Get(url);
             req.downloadHandler = new DownloadHandlerBuffer();
@@ -194,6 +197,7 @@ namespace TapBrawl.Network
             string? bearer,
             CancellationToken ct = default)
         {
+            await ApplyDevRequestDelayAsync(ct);
             var url = _baseUrl + path;
             var json = JsonConvert.SerializeObject(body);
             using var req = new UnityWebRequest(url, UnityWebRequest.kHttpVerbPOST);
@@ -239,6 +243,7 @@ namespace TapBrawl.Network
             string bearer,
             CancellationToken ct = default)
         {
+            await ApplyDevRequestDelayAsync(ct);
             var url = _baseUrl + path;
             var json = JsonConvert.SerializeObject(body);
             using var req = new UnityWebRequest(url, UnityWebRequest.kHttpVerbPUT);
@@ -276,6 +281,17 @@ namespace TapBrawl.Network
             {
                 return new ApiResult<T>(false, code, default, ex.Message);
             }
+        }
+
+        // TODO: убрать после теста LoadingOverlay.
+        private Task ApplyDevRequestDelayAsync(CancellationToken ct)
+        {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            var ms = _config.DevSimulateRequestDelayMs;
+            if (ms > 0)
+                return Task.Delay(ms, ct);
+#endif
+            return Task.CompletedTask;
         }
 
         private static string BuildNetworkError(UnityWebRequest req, string responseText)

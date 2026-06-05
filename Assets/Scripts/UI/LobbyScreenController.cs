@@ -42,7 +42,7 @@ namespace TapBrawl.UI
         private void Start()
         {
             if (logoutButton != null)
-                logoutButton.onClick.AddListener(OnLogoutClicked);
+                logoutButton.onClick.AddListener(Logout);
             PlayLobbyMusicIfConfigured();
             var s = AuthContext.Current;
             if (s == null && AuthStorage.TryLoad(out var stored) && stored != null)
@@ -165,7 +165,7 @@ namespace TapBrawl.UI
 
         private void OnDestroy() => StopLobbyMusic();
 
-        private void OnLogoutClicked()
+        public void Logout()
         {
             StopLobbyMusic();
             AuthManager.Logout();
