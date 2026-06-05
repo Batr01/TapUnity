@@ -67,10 +67,38 @@ namespace TapBrawl.UI
             }
         }
 
-        private void OnEnable() => _ = RefreshAsync();
+        private void OnEnable()
+        {
+            CurrencyState.BalancesUpdated -= OnBalancesUpdated;
+            CurrencyState.BalancesUpdated += OnBalancesUpdated;
+            _ = RefreshAsync();
+        }
+
+        private void OnDisable() => CurrencyState.BalancesUpdated -= OnBalancesUpdated;
+
+        private void OnBalancesUpdated(int coins, int gems)
+        {
+            _ = gems;
+            if (_lastState == null)
+                return;
+
+            _lastState.Coins = coins;
+            foreach (var row in skillRows)
+            {
+                if (row == null)
+                    continue;
+                var skill = _lastState.Skills.FirstOrDefault(x => x.SkillId == row.SkillId);
+                if (skill == null)
+                    continue;
+                row.Bind(skill.Level, skill.NextUpgradeCostCoins, coins >= skill.NextUpgradeCostCoins);
+            }
+
+            SetStatus($"Монеты: {coins}. Лоадаут: {string.Join(", ", _lastState.LoadoutSlotSkillIds)}");
+        }
 
         private void OnDestroy()
         {
+            CurrencyState.BalancesUpdated -= OnBalancesUpdated;
             if (saveLoadoutButton != null)
                 saveLoadoutButton.onClick.RemoveListener(OnSaveLoadoutClicked);
 

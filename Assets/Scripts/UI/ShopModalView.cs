@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using TapBrawl.Core.Economy;
 using TapBrawl.Models;
 using TapBrawl.Network;
 using TMPro;
@@ -22,9 +23,14 @@ namespace TapBrawl.UI
         [SerializeField] private Button? productButtonPrefab;
 
         private readonly List<GameObject> _spawnedPacks = new();
+        private readonly List<GameObject> _spawnedExchangePacks = new();
+        private readonly List<Button> _exchangeButtons = new();
+        private readonly List<ExchangePackDto> _exchangePacks = new();
         private IapManager? _iap;
         private bool _loading;
+        private bool _exchanging;
         private bool _layoutReady;
+        private Transform? _exchangeContainer;
         private static Sprite? _whiteSprite;
 
         private void Awake()
@@ -41,11 +47,14 @@ namespace TapBrawl.UI
             EnsureShopLayout();
             ApplyBalance();
             EnsureIap();
+            CurrencyState.BalancesUpdated -= OnBalancesUpdated;
+            CurrencyState.BalancesUpdated += OnBalancesUpdated;
             _ = LoadProductsAsync();
         }
 
         private void OnDisable()
         {
+            CurrencyState.BalancesUpdated -= OnBalancesUpdated;
             if (_iap != null)
             {
                 _iap.GemsUpdated -= OnGemsUpdated;
@@ -88,6 +97,10 @@ namespace TapBrawl.UI
                 productsContainer = panel.Find("Products Container");
                 if (productsContainer == null)
                     productsContainer = CreateProductsContainer(panel);
+
+                _exchangeContainer = panel.Find("Exchange Container");
+                if (_exchangeContainer == null)
+                    _exchangeContainer = CreateExchangeContainer(panel);
 
                 _layoutReady = true;
             }
@@ -133,7 +146,7 @@ namespace TapBrawl.UI
             var go = new GameObject("Products Container", typeof(RectTransform), typeof(VerticalLayoutGroup));
             go.transform.SetParent(panel, false);
             var rt = go.GetComponent<RectTransform>();
-            rt.anchorMin = new Vector2(0.08f, 0.2f);
+            rt.anchorMin = new Vector2(0.08f, 0.52f);
             rt.anchorMax = new Vector2(0.92f, 0.82f);
             rt.offsetMin = Vector2.zero;
             rt.offsetMax = Vector2.zero;
@@ -150,6 +163,37 @@ namespace TapBrawl.UI
             return go.transform;
         }
 
+        private static Transform CreateExchangeContainer(Transform panel)
+        {
+            var go = new GameObject("Exchange Container", typeof(RectTransform), typeof(VerticalLayoutGroup));
+            go.transform.SetParent(panel, false);
+            var rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = new Vector2(0.08f, 0.2f);
+            rt.anchorMax = new Vector2(0.92f, 0.5f);
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
+
+            var layout = go.GetComponent<VerticalLayoutGroup>();
+            layout.spacing = 10f;
+            layout.padding = new RectOffset(4, 4, 4, 4);
+            layout.childAlignment = TextAnchor.UpperCenter;
+            layout.childControlWidth = true;
+            layout.childControlHeight = true;
+            layout.childForceExpandWidth = true;
+            layout.childForceExpandHeight = false;
+
+            var headerGo = new GameObject("Exchange Header", typeof(RectTransform), typeof(Text), typeof(LayoutElement));
+            headerGo.transform.SetParent(go.transform, false);
+            var header = headerGo.GetComponent<Text>();
+            ConfigureLegacyText(header, "Обмен на монеты", 28, FontStyle.Bold, TextAnchor.MiddleLeft);
+            header.color = UiModalStyle.ProfileAccentTextColor;
+            var headerLe = headerGo.GetComponent<LayoutElement>();
+            headerLe.preferredHeight = 36f;
+            headerLe.minHeight = 36f;
+
+            return go.transform;
+        }
+
         private void ApplyStaticTexts()
         {
             if (titleText != null)
@@ -162,7 +206,14 @@ namespace TapBrawl.UI
             if (balanceText == null)
                 return;
             var gems = AuthContext.Current?.Player.Gems ?? 0;
-            balanceText.text = $"Adipoint: {gems}";
+            balanceText.text = CurrencyDisplay.FormatShopBalance(gems);
+            RefreshExchangeButtons();
+        }
+
+        private void OnBalancesUpdated(int coins, int gems)
+        {
+            _ = coins;
+            ApplyBalance();
         }
 
         private void EnsureIap()
@@ -218,16 +269,52 @@ namespace TapBrawl.UI
                     RebuildProductPacks(products);
                     SetStatus(_iap is { IsReady: true } ? string.Empty : "Подключение к магазину…");
                 }
+
+                await LoadExchangePacksAsync().ConfigureAwait(true);
             }
             catch (Exception ex)
             {
                 RebuildProductPacks(products);
+                RebuildExchangePacks(GetFallbackExchangePacks());
                 SetStatus(ex.Message);
             }
             finally
             {
                 _loading = false;
             }
+        }
+
+        private async Task LoadExchangePacksAsync()
+        {
+            var packs = GetFallbackExchangePacks();
+            backendConfig = BackendConfigLocator.Resolve(backendConfig);
+            if (backendConfig != null)
+            {
+                var api = new ApiClient(backendConfig);
+                var result = await api.ShopExchangePacksAsync(CancellationToken.None).ConfigureAwait(true);
+                if (result.Success && result.Data is { Count: > 0 })
+                    packs = result.Data;
+            }
+
+            RebuildExchangePacks(packs);
+        }
+
+        private static List<ExchangePackDto> GetFallbackExchangePacks()
+        {
+            var list = new List<ExchangePackDto>();
+            foreach (var pack in GemsExchangeBalance.Packs)
+            {
+                list.Add(new ExchangePackDto
+                {
+                    PackId = pack.PackId,
+                    DisplayName = pack.DisplayName,
+                    GemsCost = pack.GemsCost,
+                    CoinsReward = pack.CoinsReward,
+                    BonusPercent = pack.BonusPercent,
+                });
+            }
+
+            return list;
         }
 
         private static List<ShopProductDto> GetFallbackProducts() =>
@@ -349,6 +436,167 @@ namespace TapBrawl.UI
             _ => new Color(0.42f, 0.28f, 0.72f, 1f),
         };
 
+        private void RebuildExchangePacks(IReadOnlyList<ExchangePackDto> packs)
+        {
+            foreach (var go in _spawnedExchangePacks)
+            {
+                if (go != null)
+                    Destroy(go);
+            }
+
+            _spawnedExchangePacks.Clear();
+            _exchangeButtons.Clear();
+            _exchangePacks.Clear();
+
+            if (_exchangeContainer == null)
+                return;
+
+            _exchangePacks.AddRange(packs);
+            for (var i = 0; i < packs.Count; i++)
+            {
+                var card = CreateExchangeCard(packs[i], i);
+                if (card != null)
+                    _spawnedExchangePacks.Add(card);
+            }
+
+            RefreshExchangeButtons();
+        }
+
+        private GameObject? CreateExchangeCard(ExchangePackDto pack, int index)
+        {
+            if (_exchangeContainer == null)
+                return null;
+
+            var go = new GameObject(
+                $"Exchange_{pack.PackId}",
+                typeof(RectTransform),
+                typeof(Image),
+                typeof(Button),
+                typeof(LayoutElement));
+            go.transform.SetParent(_exchangeContainer, false);
+
+            var layoutEl = go.GetComponent<LayoutElement>();
+            layoutEl.preferredHeight = 96f;
+            layoutEl.minHeight = 88f;
+
+            var bg = go.GetComponent<Image>();
+            ApplyPanelImage(bg, ExchangePackColor(index));
+
+            var btnComp = go.GetComponent<Button>();
+            btnComp.targetGraphic = bg;
+            _exchangeButtons.Add(btnComp);
+
+            var labelGo = new GameObject("Label", typeof(RectTransform));
+            labelGo.transform.SetParent(go.transform, false);
+            StretchFull(labelGo.GetComponent<RectTransform>());
+
+            var titleTmp = CreateTmp(
+                labelGo.transform,
+                pack.DisplayName,
+                22,
+                new Color(0.85f, 0.92f, 1f),
+                TextAlignmentOptions.Left);
+            var titleRt = titleTmp.rectTransform;
+            titleRt.anchorMin = new Vector2(0.06f, 0.55f);
+            titleRt.anchorMax = new Vector2(0.62f, 0.92f);
+            titleRt.offsetMin = Vector2.zero;
+            titleRt.offsetMax = Vector2.zero;
+
+            var amountTmp = CreateTmp(
+                labelGo.transform,
+                CurrencyDisplay.FormatExchangePack(pack.GemsCost, pack.CoinsReward, pack.BonusPercent),
+                26,
+                Color.white,
+                TextAlignmentOptions.Left);
+            amountTmp.fontStyle = FontStyles.Bold;
+            var amountRt = amountTmp.rectTransform;
+            amountRt.anchorMin = new Vector2(0.06f, 0.1f);
+            amountRt.anchorMax = new Vector2(0.62f, 0.55f);
+            amountRt.offsetMin = Vector2.zero;
+            amountRt.offsetMax = Vector2.zero;
+
+            var buyTmp = CreateTmp(labelGo.transform, "Обменять", 28, new Color(1f, 0.92f, 0.55f), TextAlignmentOptions.Right);
+            buyTmp.fontStyle = FontStyles.Bold;
+            var buyRt = buyTmp.rectTransform;
+            buyRt.anchorMin = new Vector2(0.62f, 0.15f);
+            buyRt.anchorMax = new Vector2(0.94f, 0.85f);
+            buyRt.offsetMin = Vector2.zero;
+            buyRt.offsetMax = Vector2.zero;
+
+            var packId = pack.PackId;
+            btnComp.onClick.AddListener(() => OnExchangeClicked(packId));
+            return go;
+        }
+
+        private static Color ExchangePackColor(int index) => index switch
+        {
+            0 => new Color(0.2f, 0.34f, 0.58f, 1f),
+            1 => new Color(0.22f, 0.44f, 0.5f, 1f),
+            2 => new Color(0.34f, 0.3f, 0.62f, 1f),
+            _ => new Color(0.5f, 0.28f, 0.42f, 1f),
+        };
+
+        private void RefreshExchangeButtons()
+        {
+            var gems = AuthContext.Current?.Player.Gems ?? 0;
+            for (var i = 0; i < _exchangeButtons.Count && i < _exchangePacks.Count; i++)
+            {
+                var btn = _exchangeButtons[i];
+                if (btn == null)
+                    continue;
+                btn.interactable = !_exchanging && gems >= _exchangePacks[i].GemsCost;
+            }
+        }
+
+        private async void OnExchangeClicked(string packId)
+        {
+            if (_exchanging)
+                return;
+
+            backendConfig = BackendConfigLocator.Resolve(backendConfig);
+            if (backendConfig == null)
+            {
+                SetStatus("Backend Config не назначен.");
+                return;
+            }
+
+            var session = AuthContext.Current;
+            if (session == null)
+            {
+                SetStatus("Нужен вход.");
+                return;
+            }
+
+            _exchanging = true;
+            RefreshExchangeButtons();
+            SetStatus("Обмен…");
+
+            try
+            {
+                var api = new ApiClient(backendConfig);
+                var result = await api.PlayersMeExchangeGemsAsync(session.AccessToken, packId, CancellationToken.None)
+                    .ConfigureAwait(true);
+                if (!result.Success || result.Data == null)
+                {
+                    SetStatus($"Ошибка обмена: HTTP {result.StatusCode} {result.ErrorBody}");
+                    return;
+                }
+
+                CurrencyState.ApplyBalances(result.Data.Coins, result.Data.Gems);
+                ApplyBalance();
+                SetStatus($"+{result.Data.CoinsGranted:N0} монет");
+            }
+            catch (Exception ex)
+            {
+                SetStatus(ex.Message);
+            }
+            finally
+            {
+                _exchanging = false;
+                RefreshExchangeButtons();
+            }
+        }
+
         private void OnBuyClicked(string productId)
         {
             backendConfig = BackendConfigLocator.Resolve(backendConfig);
@@ -369,11 +617,7 @@ namespace TapBrawl.UI
         {
             var session = AuthContext.Current;
             if (session != null)
-            {
-                session.Player.Gems = gems;
-                AuthContext.Current = session;
-                AuthStorage.Save(session);
-            }
+                CurrencyState.ApplyBalances(session.Player.Coins, gems);
 
             ApplyBalance();
             SetStatus("Покупка успешна!");

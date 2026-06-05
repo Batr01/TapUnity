@@ -23,6 +23,7 @@ namespace TapBrawl.UI
         [SerializeField] private LobbyModalsHost? lobbyModals;
         [SerializeField] private Button? logoutButton;
         [SerializeField] private Text? usernameText;
+        [SerializeField] private Text? lobbyCurrencyText;
         [SerializeField] private Text? coinsText;
         [SerializeField] private Text? gemsText;
         [SerializeField] private Text? rankText;
@@ -42,7 +43,10 @@ namespace TapBrawl.UI
 
         private void Start()
         {
+            EnsureLobbyCurrencyBar();
             TryAutoWireGemsText();
+            CurrencyState.BalancesUpdated -= OnBalancesUpdated;
+            CurrencyState.BalancesUpdated += OnBalancesUpdated;
             if (logoutButton != null)
                 logoutButton.onClick.AddListener(Logout);
             PlayLobbyMusicIfConfigured();
@@ -84,8 +88,65 @@ namespace TapBrawl.UI
             ApplyProfileUi(session.Player);
         }
 
+        private void OnBalancesUpdated(int coins, int gems)
+        {
+            var session = AuthContext.Current;
+            if (session == null)
+                return;
+            session.Player.Coins = coins;
+            session.Player.Gems = gems;
+            ApplyProfileUi(session.Player);
+        }
+
+        private void EnsureLobbyCurrencyBar()
+        {
+            if (lobbyCurrencyText != null)
+                return;
+
+            var canvas = FindFirstObjectByType<Canvas>();
+            if (canvas == null)
+                return;
+
+            var bar = canvas.transform.Find("LobbyCurrencyBar");
+            if (bar == null)
+            {
+                var go = new GameObject("LobbyCurrencyBar", typeof(RectTransform), typeof(Image));
+                go.transform.SetParent(canvas.transform, false);
+                var rt = go.GetComponent<RectTransform>();
+                rt.anchorMin = new Vector2(0f, 1f);
+                rt.anchorMax = new Vector2(1f, 1f);
+                rt.pivot = new Vector2(0.5f, 1f);
+                rt.anchoredPosition = new Vector2(0f, -112f);
+                rt.sizeDelta = new Vector2(0f, 48f);
+                var img = go.GetComponent<Image>();
+                img.color = new Color(0.12f, 0.14f, 0.2f, 0.85f);
+                img.raycastTarget = false;
+
+                var textGo = new GameObject("CurrencyText", typeof(RectTransform), typeof(Text));
+                textGo.transform.SetParent(go.transform, false);
+                var textRt = textGo.GetComponent<RectTransform>();
+                textRt.anchorMin = Vector2.zero;
+                textRt.anchorMax = Vector2.one;
+                textRt.offsetMin = new Vector2(16f, 0f);
+                textRt.offsetMax = new Vector2(-16f, 0f);
+                var text = textGo.GetComponent<Text>();
+                text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+                text.fontSize = 24;
+                text.alignment = TextAnchor.MiddleCenter;
+                text.color = UiModalStyle.ProfileAccentTextColor;
+                text.raycastTarget = false;
+                lobbyCurrencyText = text;
+                bar = go.transform;
+            }
+
+            lobbyCurrencyText ??= bar.Find("CurrencyText")?.GetComponent<Text>();
+        }
+
         private void TryAutoWireGemsText()
         {
+            if (lobbyCurrencyText != null)
+                return;
+
             if (gemsText != null)
                 return;
 
@@ -202,10 +263,12 @@ namespace TapBrawl.UI
         {
             if (usernameText != null)
                 usernameText.text = p.Username;
+            if (lobbyCurrencyText != null)
+                lobbyCurrencyText.text = CurrencyDisplay.FormatLobbyCompact(p.Coins, p.Gems);
             if (coinsText != null)
-                coinsText.text = $"Монеты: {p.Coins}";
+                coinsText.text = CurrencyDisplay.FormatCoins(p.Coins);
             if (gemsText != null)
-                gemsText.text = $"Adipoint: {p.Gems}";
+                gemsText.text = CurrencyDisplay.FormatGems(p.Gems);
             if (rankText != null)
                 rankText.text = $"Рейтинг: {p.RankPoints}";
             if (tierText != null)
@@ -214,6 +277,7 @@ namespace TapBrawl.UI
 
         private void OnDestroy()
         {
+            CurrencyState.BalancesUpdated -= OnBalancesUpdated;
             if (IapManager.Instance != null)
                 IapManager.Instance.GemsUpdated -= OnGemsUpdated;
             StopLobbyMusic();

@@ -21,8 +21,11 @@ namespace TapBrawl.UI
         [SerializeField] private Button? saveButton;
         [Header("Профиль: ID")]
         [SerializeField] private Text? playerIdText;
-        [SerializeField] private Text? gemsText;
         [SerializeField] private Button? copyIdButton;
+        [Header("Профиль: валюта")]
+        [SerializeField] private Text? coinsText;
+        [SerializeField] private Text? gemsText;
+        [SerializeField] private Text? equivalentText;
         [Header("Профиль: уровень / XP")]
         [SerializeField] private Text? levelText;
         [SerializeField] private Text? xpText;
@@ -40,6 +43,7 @@ namespace TapBrawl.UI
 
         private void Awake()
         {
+            TryAutoWireCurrencyTexts();
             if (saveButton != null)
                 saveButton.onClick.AddListener(OnSaveClicked);
             if (copyIdButton != null)
@@ -48,17 +52,91 @@ namespace TapBrawl.UI
 
         private void OnEnable()
         {
+            CurrencyState.BalancesUpdated -= OnBalancesUpdated;
+            CurrencyState.BalancesUpdated += OnBalancesUpdated;
+
             var s = AuthContext.Current?.Player;
             if (s != null)
             {
                 if (usernameInput != null)
                     usernameInput.text = s.Username;
                 RenderIdentityBlock(s);
+                RenderCurrencyBlock(s);
                 RenderProgressBlock(s.RankPoints);
             }
             RenderFallbackStats();
             SetStatus(string.Empty);
             _ = RefreshExtendedProfileAsync();
+        }
+
+        private void OnDisable()
+        {
+            CurrencyState.BalancesUpdated -= OnBalancesUpdated;
+        }
+
+        private void OnBalancesUpdated(int coins, int gems)
+        {
+            var player = AuthContext.Current?.Player;
+            if (player == null)
+                return;
+            player.Coins = coins;
+            player.Gems = gems;
+            RenderCurrencyBlock(player);
+        }
+
+        private void TryAutoWireCurrencyTexts()
+        {
+            var block = FindBlockCoint();
+            if (block == null)
+                return;
+
+            if (coinsText == null)
+                coinsText = block.Find("CoinsText")?.GetComponent<Text>();
+            if (gemsText == null)
+                gemsText = block.Find("GemsText")?.GetComponent<Text>();
+            if (equivalentText == null)
+                equivalentText = block.Find("EquivalentText")?.GetComponent<Text>();
+
+            EnsureCurrencyText(block, "GemsText", ref gemsText, "Adipoint: 0");
+            EnsureCurrencyText(block, "EquivalentText", ref equivalentText, "≈ 0 монет");
+        }
+
+        private Transform? FindBlockCoint()
+        {
+            foreach (var t in GetComponentsInChildren<Transform>(true))
+            {
+                if (t.name == "BlockCoint")
+                    return t;
+            }
+
+            return null;
+        }
+
+        private static void EnsureCurrencyText(Transform block, string name, ref Text? field, string placeholder)
+        {
+            if (field != null)
+                return;
+
+            var existing = block.Find(name);
+            if (existing != null)
+            {
+                field = existing.GetComponent<Text>();
+                return;
+            }
+
+            var go = new GameObject(name, typeof(RectTransform), typeof(Text), typeof(LayoutElement));
+            go.transform.SetParent(block, false);
+            var text = go.GetComponent<Text>();
+            text.text = placeholder;
+            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            text.fontSize = 28;
+            text.color = UiModalStyle.ProfileAccentTextColor;
+            text.alignment = TextAnchor.MiddleLeft;
+            text.raycastTarget = false;
+            var le = go.GetComponent<LayoutElement>();
+            le.preferredHeight = 40f;
+            le.minHeight = 40f;
+            field = text;
         }
 
         private async void OnSaveClicked()
@@ -109,6 +187,7 @@ namespace TapBrawl.UI
                 AuthContext.Current = session;
                 AuthStorage.Save(session);
                 RenderIdentityBlock(session.Player);
+                RenderCurrencyBlock(session.Player);
                 RenderProgressBlock(session.Player.RankPoints);
                 SetStatus("Сохранено.");
                 _ = RefreshExtendedProfileAsync();
@@ -140,6 +219,7 @@ namespace TapBrawl.UI
                     AuthContext.Current = session;
                     AuthStorage.Save(session);
                     RenderIdentityBlock(session.Player);
+                    RenderCurrencyBlock(session.Player);
                     RenderProgressBlock(session.Player.RankPoints);
                 }
 
@@ -172,8 +252,16 @@ namespace TapBrawl.UI
         {
             if (playerIdText != null)
                 playerIdText.text = $"ID: {player.Id:D}";
+        }
+
+        private void RenderCurrencyBlock(PlayerProfileDto player)
+        {
+            if (coinsText != null)
+                coinsText.text = CurrencyDisplay.FormatCoins(player.Coins);
             if (gemsText != null)
-                gemsText.text = $"Adipoint: {player.Gems}";
+                gemsText.text = CurrencyDisplay.FormatGems(player.Gems);
+            if (equivalentText != null)
+                equivalentText.text = CurrencyDisplay.FormatEquivalent(player.Gems);
         }
 
         private void RenderProgressBlock(int rankPoints)

@@ -161,6 +161,19 @@ namespace TapBrawl.Network
         public Task<ApiResult<System.Collections.Generic.List<ShopProductDto>>> ShopProductsAsync(CancellationToken ct = default) =>
             GetJsonAsync<System.Collections.Generic.List<ShopProductDto>>("/api/v1/shop/products", null, ct);
 
+        public Task<ApiResult<System.Collections.Generic.List<ExchangePackDto>>> ShopExchangePacksAsync(CancellationToken ct = default) =>
+            GetJsonAsync<System.Collections.Generic.List<ExchangePackDto>>("/api/v1/shop/exchange-packs", null, ct);
+
+        public Task<ApiResult<ExchangeGemsResponseDto>> PlayersMeExchangeGemsAsync(
+            string bearer,
+            string packId,
+            CancellationToken ct = default) =>
+            PostJsonAsync<ExchangeGemsResponseDto>(
+                "/api/v1/players/me/exchange-gems",
+                new ExchangeGemsRequestDto { PackId = packId },
+                bearer,
+                ct);
+
         public async Task<ApiResult<T>> GetJsonAsync<T>(string path, string bearer, CancellationToken ct = default)
         {
             await ApplyDevRequestDelayAsync(ct);

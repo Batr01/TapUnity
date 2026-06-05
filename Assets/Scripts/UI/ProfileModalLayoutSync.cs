@@ -21,7 +21,7 @@ namespace TapBrawl.UI
         {
             ("BlockProfil", 280f),
             ("BlockRanked", 160f),
-            ("BlockCoint", 88f),
+            ("BlockCoint", 132f),
             ("BlockLevel", 140f),
             ("BlockStatistic", 240f),
             ("BlockStatus", 64f),

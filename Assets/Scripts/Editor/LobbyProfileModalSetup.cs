@@ -43,14 +43,81 @@ namespace TapBrawl.Editor
             if (rootImg != null)
                 rootImg.enabled = false;
 
+            EnsureProfileCurrencyTexts(panel.transform);
             sync.Apply();
             WireHostProfileReference();
+            WireProfileCurrencyReferences(panel);
 
             EditorSceneManager.MarkSceneDirty(lobbyScene);
             EditorSceneManager.SaveScene(lobbyScene);
             Undo.CollapseUndoOperations(group);
             if (showDoneDialog)
                 EditorUtility.DisplayDialog("Готово", "ProfilePanel обновлён.", "OK");
+        }
+
+        private static void EnsureProfileCurrencyTexts(Transform profileRoot)
+        {
+            Transform? block = null;
+            foreach (var t in profileRoot.GetComponentsInChildren<Transform>(true))
+            {
+                if (t.name == "BlockCoint")
+                {
+                    block = t;
+                    break;
+                }
+            }
+
+            if (block == null)
+                return;
+
+            EnsureTextChild(block, "GemsText", "Adipoint: 0");
+            EnsureTextChild(block, "EquivalentText", "≈ 0 монет");
+        }
+
+        private static void EnsureTextChild(Transform parent, string name, string placeholder)
+        {
+            if (parent.Find(name) != null)
+                return;
+
+            var go = new GameObject(name, typeof(RectTransform), typeof(Text), typeof(LayoutElement));
+            Undo.RegisterCreatedObjectUndo(go, "Create " + name);
+            go.transform.SetParent(parent, false);
+            var text = go.GetComponent<Text>();
+            text.text = placeholder;
+            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            text.fontSize = 28;
+            text.color = UiModalStyle.ProfileAccentTextColor;
+            text.alignment = TextAnchor.MiddleLeft;
+            text.raycastTarget = false;
+            var le = go.GetComponent<LayoutElement>();
+            le.preferredHeight = 40f;
+            le.minHeight = 40f;
+        }
+
+        private static void WireProfileCurrencyReferences(GameObject panel)
+        {
+            Transform? block = null;
+            foreach (var t in panel.GetComponentsInChildren<Transform>(true))
+            {
+                if (t.name == "BlockCoint")
+                {
+                    block = t;
+                    break;
+                }
+            }
+
+            if (block == null)
+                return;
+
+            var controller = panel.GetComponent<ProfilePanelController>();
+            if (controller == null)
+                return;
+
+            var so = new SerializedObject(controller);
+            so.FindProperty("coinsText").objectReferenceValue = block.Find("CoinsText")?.GetComponent<Text>();
+            so.FindProperty("gemsText").objectReferenceValue = block.Find("GemsText")?.GetComponent<Text>();
+            so.FindProperty("equivalentText").objectReferenceValue = block.Find("EquivalentText")?.GetComponent<Text>();
+            so.ApplyModifiedPropertiesWithoutUndo();
         }
 
         private static void WireHostProfileReference()
