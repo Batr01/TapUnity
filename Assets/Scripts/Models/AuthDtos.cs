@@ -59,7 +59,7 @@ namespace TapBrawl.Models
     public sealed class UpdatePlayerProfileRequest
     {
         [JsonProperty("username")] public string? Username { get; set; }
-        [JsonProperty("avatarUrl")] public string? AvatarUrl { get; set; }
+        [JsonProperty("avatarId")] public string? AvatarId { get; set; }
     }
 
     public sealed class PlayerPublicStatsDto

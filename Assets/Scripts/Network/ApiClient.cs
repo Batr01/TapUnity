@@ -149,6 +149,51 @@ namespace TapBrawl.Network
         public Task<ApiResult<MatchmakingStatusDto>> MatchmakingStatusAsync(string bearer, CancellationToken ct = default) =>
             GetJsonAsync<MatchmakingStatusDto>("/api/v1/matchmaking/status", bearer, ct);
 
+        public Task<ApiResult<System.Collections.Generic.List<PlayerSearchResultDto>>> PlayersSearchAsync(
+            string bearer,
+            string query,
+            CancellationToken ct = default) =>
+            GetJsonAsync<System.Collections.Generic.List<PlayerSearchResultDto>>(
+                $"/api/v1/players/search?q={UnityEngine.Networking.UnityWebRequest.EscapeURL(query)}",
+                bearer,
+                ct);
+
+        public Task<ApiResult<FriendsListResponseDto>> FriendsListAsync(string bearer, CancellationToken ct = default) =>
+            GetJsonAsync<FriendsListResponseDto>("/api/v1/friends", bearer, ct);
+
+        public Task<ApiResult<System.Collections.Generic.List<FriendRequestDto>>> FriendsIncomingRequestsAsync(
+            string bearer,
+            CancellationToken ct = default) =>
+            GetJsonAsync<System.Collections.Generic.List<FriendRequestDto>>("/api/v1/friends/requests/incoming", bearer, ct);
+
+        public Task<ApiResult<object>> FriendsSendRequestAsync(
+            string bearer,
+            Guid targetPlayerId,
+            CancellationToken ct = default) =>
+            PostJsonAsync<object>(
+                "/api/v1/friends/requests",
+                new SendFriendRequestBodyDto { TargetPlayerId = targetPlayerId },
+                bearer,
+                ct);
+
+        public Task<ApiResult<object>> FriendsAcceptRequestAsync(
+            string bearer,
+            Guid requestId,
+            CancellationToken ct = default) =>
+            PostJsonAsync<object>($"/api/v1/friends/requests/{requestId:D}/accept", new { }, bearer, ct);
+
+        public Task<ApiResult<object>> FriendsDeclineRequestAsync(
+            string bearer,
+            Guid requestId,
+            CancellationToken ct = default) =>
+            PostJsonAsync<object>($"/api/v1/friends/requests/{requestId:D}/decline", new { }, bearer, ct);
+
+        public Task<ApiResult<object>> FriendsRemoveAsync(
+            string bearer,
+            Guid friendPlayerId,
+            CancellationToken ct = default) =>
+            DeleteJsonAsync<object>($"/api/v1/friends/{friendPlayerId:D}", bearer, ct);
+
         public Task<ApiResult<ClientConfigDto>> GetConfigAsync(CancellationToken ct = default) =>
             GetJsonAsync<ClientConfigDto>("/api/v1/config", null, ct);
 
@@ -296,6 +341,52 @@ namespace TapBrawl.Network
 
             try
             {
+                if (string.IsNullOrWhiteSpace(text))
+                    return new ApiResult<T>(true, code, default, null);
+                var data = JsonConvert.DeserializeObject<T>(text);
+                return new ApiResult<T>(true, code, data, null);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResult<T>(false, code, default, ex.Message);
+            }
+        }
+
+        public async Task<ApiResult<T>> DeleteJsonAsync<T>(
+            string path,
+            string bearer,
+            CancellationToken ct = default)
+        {
+            await ApplyDevRequestDelayAsync(ct);
+            var url = _baseUrl + path;
+            using var req = UnityWebRequest.Delete(url);
+            req.downloadHandler = new DownloadHandlerBuffer();
+            if (!string.IsNullOrEmpty(bearer))
+                req.SetRequestHeader("Authorization", "Bearer " + bearer);
+
+            var op = req.SendWebRequest();
+            while (!op.isDone)
+            {
+                ct.ThrowIfCancellationRequested();
+                await Task.Yield();
+            }
+
+            var code = (int)req.responseCode;
+            var text = req.downloadHandler?.text ?? string.Empty;
+
+            if (req.result != UnityWebRequest.Result.Success)
+                return new ApiResult<T>(false, code, default, BuildNetworkError(req, text));
+
+            if (code is < 200 or >= 300)
+            {
+                T? empty = default;
+                return new ApiResult<T>(false, code, empty, text);
+            }
+
+            try
+            {
+                if (string.IsNullOrWhiteSpace(text))
+                    return new ApiResult<T>(true, code, default, null);
                 var data = JsonConvert.DeserializeObject<T>(text);
                 return new ApiResult<T>(true, code, data, null);
             }

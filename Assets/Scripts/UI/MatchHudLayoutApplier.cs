@@ -244,7 +244,8 @@ namespace TapBrawl.UI
             PlaceOpenPinButtonInSkillBar(skillBar);
 
             var slotNames = new[] { "SkillGiantCircles", "SkillRedDeception", "SkillSmokeVeil" };
-            var slotX = new[] { -112f, 0f, 112f };
+            var slotStep = MatchHudStyle.SkillSlotCenterStep;
+            var slotX = new[] { -slotStep, 0f, slotStep };
             for (var i = 0; i < slotNames.Length; i++)
             {
                 var slot = FindDeep(skillBar, slotNames[i]);
@@ -253,7 +254,7 @@ namespace TapBrawl.UI
                 slot.anchorMin = new Vector2(0.5f, 0.5f);
                 slot.anchorMax = new Vector2(0.5f, 0.5f);
                 slot.pivot = new Vector2(0.5f, 0.5f);
-                slot.anchoredPosition = new Vector2(slotX[i], -36f);
+                slot.anchoredPosition = new Vector2(slotX[i], MatchHudStyle.SkillSlotVerticalOffset);
                 slot.sizeDelta = new Vector2(MatchHudStyle.SkillSlotSize, MatchHudStyle.SkillSlotSize);
                 var status = slot.Find("Text");
                 if (status != null)
@@ -296,7 +297,7 @@ namespace TapBrawl.UI
             openBtn.anchorMin = new Vector2(0f, 0.5f);
             openBtn.anchorMax = new Vector2(0f, 0.5f);
             openBtn.pivot = new Vector2(0f, 0.5f);
-            openBtn.anchoredPosition = new Vector2(16f, -36f);
+            openBtn.anchoredPosition = new Vector2(20f, MatchHudStyle.SkillSlotVerticalOffset);
             openBtn.sizeDelta = new Vector2(MatchHudStyle.SkillSlotSize, MatchHudStyle.SkillSlotSize);
             openBtn.localScale = Vector3.one;
 

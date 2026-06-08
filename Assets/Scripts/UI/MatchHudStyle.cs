@@ -11,7 +11,10 @@ namespace TapBrawl.UI
         public const float TopBarHeight = 112f;
         public const float NoticeBarHeight = 48f;
         public const float SkillBarHeight = 280f;
-        public const float SkillSlotSize = 96f;
+        public const float SkillSlotSize = 160f;
+        public const float SkillSlotGap = 48f;
+        public const float SkillSlotVerticalOffset = -44f;
+        public static float SkillSlotCenterStep => SkillSlotSize + SkillSlotGap;
         public const float EnergyBarHeight = 20f;
         public const float PlayAreaBottomInset = SkillBarHeight + 16f;
         public const float PlayAreaTopInset = TopBarHeight + NoticeBarHeight + 8f;

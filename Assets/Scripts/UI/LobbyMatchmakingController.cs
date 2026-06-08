@@ -11,19 +11,16 @@ using SynchronizationContext = System.Threading.SynchronizationContext;
 namespace TapBrawl.UI
 {
     /// <summary>
-    /// Кнопка «Искать матч 1v1»: SignalR, очередь, затем загрузка сцены Match с параметрами матча.
-    /// Нужен пакет Microsoft.AspNetCore.SignalR.Client (см. Docs/Unity/06-SIGNALR-CLIENT-UNITY.md).
+    /// Кнопка «Искать матч 1v1»: SignalR через <see cref="LobbyHubHost"/>, очередь, затем Match.
     /// </summary>
     public sealed class LobbyMatchmakingController : MonoBehaviour
     {
         [SerializeField] private BackendConfig backendConfig = null!;
         [SerializeField] private string authSceneName = "Auth";
-        [SerializeField] private string matchSceneName = "Match";
         [SerializeField] private Button? findMatchButton;
         [SerializeField] private Text? statusText;
 
-        private MatchHubClient? _hub;
-        private bool _leavingToMatchScene;
+        private LobbyHubHost? _hubHost;
         private SynchronizationContext? _mainContext;
 
         private void Awake()
@@ -35,6 +32,10 @@ namespace TapBrawl.UI
 
         private void Start()
         {
+            _hubHost = LobbyHubHost.Instance ?? GetComponent<LobbyHubHost>() ?? gameObject.AddComponent<LobbyHubHost>();
+            if (_hubHost != null)
+                _hubHost.QueueJoined += OnQueueJoined;
+
             if (LobbyAutoSearch.RequestAutoSearch)
             {
                 LobbyAutoSearch.RequestAutoSearch = false;
@@ -44,9 +45,8 @@ namespace TapBrawl.UI
 
         private void OnDestroy()
         {
-            if (_leavingToMatchScene)
-                return;
-            _ = DisconnectSafeAsync();
+            if (_hubHost != null)
+                _hubHost.QueueJoined -= OnQueueJoined;
         }
 
         private async void FindMatchClickedAsync()
@@ -56,9 +56,6 @@ namespace TapBrawl.UI
                 SetStatus("BackendConfig не назначен.");
                 return;
             }
-
-            // Снимок контекста с UI-потока: MatchFound с SignalR может прийти на другом потоке — без Post() AttachHub/LoadScene недопустимы.
-            var uiSyncContext = SynchronizationContext.Current ?? _mainContext;
 
             try
             {
@@ -73,7 +70,6 @@ namespace TapBrawl.UI
                     return;
                 }
 
-                // JWT может быть ещё валидным, а строка Player в БД уже удалена (сброс БД) → на сервере FirstAsync и «Sequence contains no matching element».
                 for (var attempt = 0; attempt < 2; attempt++)
                 {
                     var session = AuthContext.Current;
@@ -105,22 +101,11 @@ namespace TapBrawl.UI
                     return;
                 }
 
-                var sessionFinal = AuthContext.Current;
-                if (sessionFinal == null || string.IsNullOrWhiteSpace(sessionFinal.AccessToken))
-                {
-                    SetStatus("Нет сессии после входа.");
-                    return;
-                }
-
+                _hubHost = LobbyHubHost.Instance ?? GetComponent<LobbyHubHost>() ?? gameObject.AddComponent<LobbyHubHost>();
                 SetStatus("Подключение к матчмейкингу...");
-                _hub?.Dispose();
-                _hub = new MatchHubClient();
-                _hub.QueueJoined += OnQueueJoined;
-                _hub.MatchFound += dto => OnMatchFound(dto, uiSyncContext);
-
-                await _hub.ConnectAsync(backendConfig.BaseUrl, sessionFinal.AccessToken, CancellationToken.None);
+                await _hubHost.EnsureConnectedAsync(CancellationToken.None);
                 SetStatus("В очереди…");
-                await _hub.JoinQueue1v1Async(CancellationToken.None);
+                await _hubHost.JoinQueue1v1Async(CancellationToken.None);
             }
             catch (Exception ex)
             {
@@ -134,55 +119,6 @@ namespace TapBrawl.UI
         }
 
         private void OnQueueJoined() => SetStatus("В очереди (ожидание соперника)…");
-
-        private void OnMatchFound(MatchFoundDto dto, SynchronizationContext? uiSyncContext)
-        {
-            void Load()
-            {
-                if (_hub == null)
-                {
-                    SetStatus("Ошибка: матч найден, но соединение с хабом потеряно. Начните поиск заново.");
-                    Debug.LogError("[Lobby MM] MatchFound при _hub == null — сцена Match не загружена, иначе скиллы по сети не работали бы.");
-                    return;
-                }
-
-                SetStatus($"Матч! {dto.OpponentUsername}, загрузка…");
-                Debug.Log($"[Match] id={dto.MatchId} seed={dto.Seed} duration={dto.DurationSec}s");
-
-                PendingOnlineMatch.SetFromDto(dto);
-
-                var holder = MatchConnectionHolder.Ensure();
-                holder.AttachHub(_hub);
-                _hub = null;
-
-                _leavingToMatchScene = true;
-
-                if (!string.IsNullOrEmpty(matchSceneName))
-                    SceneManager.LoadScene(matchSceneName, LoadSceneMode.Single);
-            }
-
-            var ctx = uiSyncContext ?? _mainContext;
-            if (ctx != null)
-                ctx.Post(_ => Load(), null);
-            else
-                Load();
-        }
-
-        private async Task DisconnectSafeAsync()
-        {
-            if (_hub == null)
-                return;
-            try
-            {
-                await _hub.LeaveQueueAsync();
-                await _hub.DisconnectAsync();
-            }
-            catch
-            {
-                // ignored
-            }
-            _hub = null;
-        }
 
         private void SetStatus(string msg)
         {

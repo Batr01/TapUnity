@@ -10,14 +10,14 @@ using UnityEngine.UI;
 namespace TapBrawl.UI
 {
     /// <summary>
-    /// Панель в лобби: смена ника и URL аватара через <c>PUT /api/v1/players/me</c>.
+    /// Панель в лобби: смена ника и аватара через <c>PUT /api/v1/players/me</c>.
     /// </summary>
     public sealed class ProfilePanelController : MonoBehaviour
     {
         [SerializeField] private BackendConfig backendConfig = null!;
         [SerializeField] private string authSceneName = "Auth";
         [SerializeField] private InputField? usernameInput;
-        [SerializeField] private InputField? avatarUrlInput;
+        [SerializeField] private ProfileAvatarPicker? avatarPicker;
         [SerializeField] private Button? saveButton;
         [Header("Профиль: ID")]
         [SerializeField] private Text? playerIdText;
@@ -43,6 +43,11 @@ namespace TapBrawl.UI
 
         private void Awake()
         {
+            if (avatarPicker == null)
+                avatarPicker = GetComponent<ProfileAvatarPicker>();
+            if (avatarPicker == null)
+                avatarPicker = gameObject.AddComponent<ProfileAvatarPicker>();
+
             TryAutoWireCurrencyTexts();
             if (saveButton != null)
                 saveButton.onClick.AddListener(OnSaveClicked);
@@ -60,6 +65,7 @@ namespace TapBrawl.UI
             {
                 if (usernameInput != null)
                     usernameInput.text = s.Username;
+                BindAvatarPicker(s);
                 RenderIdentityBlock(s);
                 RenderCurrencyBlock(s);
                 RenderProgressBlock(s.RankPoints);
@@ -170,9 +176,7 @@ namespace TapBrawl.UI
                 var req = new UpdatePlayerProfileRequest
                 {
                     Username = string.IsNullOrEmpty(username) ? null : username,
-                    AvatarUrl = avatarUrlInput == null || string.IsNullOrWhiteSpace(avatarUrlInput.text)
-                        ? null
-                        : avatarUrlInput.text.Trim(),
+                    AvatarId = avatarPicker != null ? avatarPicker.SelectedAvatarId : null,
                 };
 
                 SetStatus("Сохранение…");
@@ -186,6 +190,7 @@ namespace TapBrawl.UI
                 session.Player = r.Data;
                 AuthContext.Current = session;
                 AuthStorage.Save(session);
+                BindAvatarPicker(session.Player);
                 RenderIdentityBlock(session.Player);
                 RenderCurrencyBlock(session.Player);
                 RenderProgressBlock(session.Player.RankPoints);
@@ -218,6 +223,7 @@ namespace TapBrawl.UI
                     session.Player = me.Data;
                     AuthContext.Current = session;
                     AuthStorage.Save(session);
+                    BindAvatarPicker(session.Player);
                     RenderIdentityBlock(session.Player);
                     RenderCurrencyBlock(session.Player);
                     RenderProgressBlock(session.Player.RankPoints);
@@ -246,6 +252,14 @@ namespace TapBrawl.UI
 
             GUIUtility.systemCopyBuffer = id.ToString("D");
             SetStatus("ID скопирован.");
+        }
+
+        private void BindAvatarPicker(PlayerProfileDto player)
+        {
+            if (avatarPicker == null)
+                return;
+
+            avatarPicker.Bind(player.AvatarId, player.UnlockedAvatarIds);
         }
 
         private void RenderIdentityBlock(PlayerProfileDto player)

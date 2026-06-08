@@ -14,6 +14,7 @@ namespace TapBrawl.UI
         [SerializeField] private UiPanelToggle skillDetailsModal = null!;
         [SerializeField] private UiPanelToggle? shopModal;
         [SerializeField] private UiPanelToggle? settingsModal;
+        [SerializeField] private UiPanelToggle? friendsModal;
         [SerializeField] private ProfilePanelToggle? profilePanel;
 
         private void Awake()
@@ -35,6 +36,8 @@ namespace TapBrawl.UI
                     shopModal = FindToggle(canvas.transform, "ShopModal");
                 if (settingsModal == null)
                     settingsModal = FindToggle(canvas.transform, "SettingsModal");
+                if (friendsModal == null)
+                    friendsModal = FindToggle(canvas.transform, "FriendsModal");
             }
 
             if (profilePanel == null)
@@ -53,6 +56,30 @@ namespace TapBrawl.UI
                 Instance = null;
         }
 
+        public void OpenFriends()
+        {
+            TryAutoWire();
+            if (friendsModal == null)
+            {
+                Debug.LogError(
+                    "[LobbyModalsHost] FriendsModal не найден. В Unity: Tap → Setup Lobby Friends Modal.",
+                    this);
+                return;
+            }
+
+            CloseProfile();
+            CloseShop();
+            CloseSettings();
+            CloseAllSkillModals();
+            friendsModal.Show();
+        }
+
+        public void CloseFriends()
+        {
+            if (friendsModal != null)
+                friendsModal.Hide();
+        }
+
         public void OpenShop()
         {
             TryAutoWire();
@@ -66,6 +93,7 @@ namespace TapBrawl.UI
 
             CloseProfile();
             CloseSettings();
+            CloseFriends();
             CloseAllSkillModals();
             shopModal.Show();
         }
@@ -89,6 +117,7 @@ namespace TapBrawl.UI
 
             CloseProfile();
             CloseShop();
+            CloseFriends();
             CloseAllSkillModals();
             settingsModal.Show();
         }
@@ -105,6 +134,7 @@ namespace TapBrawl.UI
                 return;
             CloseShop();
             CloseSettings();
+            CloseFriends();
             CloseProfile();
             CloseSkillDetails();
             skillsModal.Show();
@@ -122,6 +152,7 @@ namespace TapBrawl.UI
                 return;
             CloseShop();
             CloseSettings();
+            CloseFriends();
             CloseProfile();
             PendingSkillDetails.Set(skillId);
             skillDetailsModal.Show();

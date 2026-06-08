@@ -28,6 +28,9 @@ namespace TapBrawl.Network
         public event Action<OpponentVisualSkillDto>? OpponentVisualSkill;
         public event Action<PlayerPingDto>? PlayerPing;
         public event Action<MatchResultResponseDto>? MatchResultReady;
+        public event Action<FriendChallengeReceivedDto>? FriendChallengeReceived;
+        public event Action<FriendChallengeDeclinedDto>? FriendChallengeDeclined;
+        public event Action<FriendChallengeExpiredDto>? FriendChallengeExpired;
 
         public bool IsConnected => _hub?.State == HubConnectionState.Connected;
 
@@ -73,6 +76,24 @@ namespace TapBrawl.Network
                     MatchResultReady?.Invoke(dto);
             });
 
+            _hub.On<FriendChallengeReceivedDto>(HubEvents.FriendChallengeReceived, dto =>
+            {
+                if (dto != null)
+                    FriendChallengeReceived?.Invoke(dto);
+            });
+
+            _hub.On<FriendChallengeDeclinedDto>(HubEvents.FriendChallengeDeclined, dto =>
+            {
+                if (dto != null)
+                    FriendChallengeDeclined?.Invoke(dto);
+            });
+
+            _hub.On<FriendChallengeExpiredDto>(HubEvents.FriendChallengeExpired, dto =>
+            {
+                if (dto != null)
+                    FriendChallengeExpired?.Invoke(dto);
+            });
+
             _hub.Closed += ex =>
             {
                 if (ex != null)
@@ -112,6 +133,27 @@ namespace TapBrawl.Network
             return _hub.InvokeAsync(HubMethods.SendPing, matchId, pingType, cancellationToken);
         }
 
+        public Task SendFriendChallengeAsync(Guid friendPlayerId, CancellationToken cancellationToken = default)
+        {
+            if (_hub == null)
+                throw new InvalidOperationException("Hub не подключён.");
+            return _hub.InvokeAsync(HubMethods.SendFriendChallenge, friendPlayerId, cancellationToken);
+        }
+
+        public Task AcceptFriendChallengeAsync(Guid challengeId, CancellationToken cancellationToken = default)
+        {
+            if (_hub == null)
+                throw new InvalidOperationException("Hub не подключён.");
+            return _hub.InvokeAsync(HubMethods.AcceptFriendChallenge, challengeId, cancellationToken);
+        }
+
+        public Task DeclineFriendChallengeAsync(Guid challengeId, CancellationToken cancellationToken = default)
+        {
+            if (_hub == null)
+                throw new InvalidOperationException("Hub не подключён.");
+            return _hub.InvokeAsync(HubMethods.DeclineFriendChallenge, challengeId, cancellationToken);
+        }
+
         public async Task DisconnectAsync()
         {
             if (_hub == null)
@@ -137,6 +179,9 @@ namespace TapBrawl.Network
             public const string OpponentVisualSkill = "OpponentVisualSkill";
             public const string PlayerPing = "PlayerPing";
             public const string MatchResultReady = "MatchResultReady";
+            public const string FriendChallengeReceived = "FriendChallengeReceived";
+            public const string FriendChallengeDeclined = "FriendChallengeDeclined";
+            public const string FriendChallengeExpired = "FriendChallengeExpired";
         }
 
         private static class HubMethods
@@ -145,6 +190,9 @@ namespace TapBrawl.Network
             public const string LeaveQueue = "LeaveQueue";
             public const string SendOpponentVisualSkill = "SendOpponentVisualSkill";
             public const string SendPing = "SendPing";
+            public const string SendFriendChallenge = "SendFriendChallenge";
+            public const string AcceptFriendChallenge = "AcceptFriendChallenge";
+            public const string DeclineFriendChallenge = "DeclineFriendChallenge";
         }
     }
 }

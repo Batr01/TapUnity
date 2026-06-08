@@ -4,7 +4,7 @@ using UnityEngine.UI;
 namespace TapBrawl.UI
 {
     /// <summary>Общие параметры оформления модальных окон.</summary>
-    public static class UiModalStyle
+    public static partial class UiModalStyle
     {
         public static readonly Color BackdropColor = new(0f, 0f, 0f, 0.55f);
         public static readonly Color PanelColor = new(0.12f, 0.12f, 0.14f, 0.98f);
