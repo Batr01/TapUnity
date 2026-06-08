@@ -131,6 +131,9 @@ namespace TapBrawl.Core
         private float _pingSendReadyUnscaled;
         private const float PingCooldownSec = 3f;
         private readonly Dictionary<int, AudioSource> _skillLoopAudioSources = new();
+        private readonly List<PlayerDebuffSegment> _appliedDebuffs = new();
+        private float _matchStartUnscaled;
+        private BotOpponentSimulator? _botSimulator;
 
         /// <summary>Локальные координаты <see cref="scorePopupParentOverride"/> или play area — последний удачный тап (для всплывающих +/−).</summary>
         private bool _hasLastSuccessfulTapPopupAnchor;
@@ -265,12 +268,16 @@ namespace TapBrawl.Core
                 return;
             }
 
+            var debuffDuration = skillType == MatchSkillIds.OpponentRedDeceptionVisual
+                ? _runtimeRedDeceptionDurationSec
+                : _runtimeSmokeVeilDurationSec;
+
             if (_opponentVisualSkillSendInFlight)
                 return;
-            _ = SendOpponentVisualSkillOnlineAsync(skillType, cost);
+            _ = SendOpponentVisualSkillOnlineAsync(skillType, cost, debuffDuration);
         }
 
-        private async Task SendOpponentVisualSkillOnlineAsync(int skillType, float costPercent)
+        private async Task SendOpponentVisualSkillOnlineAsync(int skillType, float costPercent, float debuffDuration)
         {
             _opponentVisualSkillSendInFlight = true;
             try
@@ -290,6 +297,7 @@ namespace TapBrawl.Core
                 await hub.SendOpponentVisualSkillAsync(_online.MatchId, skillType, CancellationToken.None);
                 Debug.Log($"[Match] Скилл {skillType} отправлен.");
                 TryConsumeSkillEnergy(costPercent);
+                RecordPlayerDebuff(skillType, debuffDuration);
                 if (debugApplyOpponentVisualSkillsLocallyAfterOnlineSend)
                     ApplyIncomingOpponentVisualSkill(skillType, PlayerSkillsRuntimeState.GetLevel(skillType));
             }
@@ -301,6 +309,40 @@ namespace TapBrawl.Core
             {
                 _opponentVisualSkillSendInFlight = false;
             }
+        }
+
+        public void SimulateBotOpponentSkill(int skillType, int casterSkillLevel)
+        {
+            if (!IsRunning)
+                return;
+            OpponentVisualSkillReceivedFromNetwork?.Invoke(skillType);
+            ApplyIncomingOpponentVisualSkill(skillType, casterSkillLevel);
+        }
+
+        public void SimulateBotOpponentPing(int pingType)
+        {
+            if ((!IsRunning && !_isPostGame) || !MatchPingIds.IsValid(pingType))
+                return;
+            PlayerPingReceivedFromNetwork?.Invoke(pingType);
+        }
+
+        private void RecordPlayerDebuff(int skillType, float durationSec)
+        {
+            if (skillType != MatchSkillIds.OpponentRedDeceptionVisual &&
+                skillType != MatchSkillIds.OpponentSmokeVeil)
+                return;
+            if (durationSec <= 0f)
+                return;
+
+            var offset = _matchStartUnscaled > 0f
+                ? Mathf.Max(0f, Time.unscaledTime - _matchStartUnscaled)
+                : 0f;
+            _appliedDebuffs.Add(new PlayerDebuffSegment
+            {
+                SkillType = skillType,
+                DurationSec = durationSec,
+                StartOffsetSec = offset,
+            });
         }
 
         private void ApplyIncomingOpponentVisualSkill(int skillType, int casterSkillLevel)
@@ -696,11 +738,24 @@ namespace TapBrawl.Core
 
             _isPreGame = false;
             IsRunning  = true;
+            _matchStartUnscaled = Time.unscaledTime;
+            _appliedDebuffs.Clear();
             _endTime   = Time.unscaledTime + p.DurationSec;
             spawner.Begin(this, p.Seed);
             RefreshUi();
             PlayGameplayMusicIfConfigured();
+            if (p.HasBotOpponent)
+            {
+                EnsureBotSimulator();
+                _botSimulator!.StartSimulation(this, p);
+            }
             _countdownRoutine = null;
+        }
+
+        private void EnsureBotSimulator()
+        {
+            if (_botSimulator == null)
+                _botSimulator = GetComponent<BotOpponentSimulator>() ?? gameObject.AddComponent<BotOpponentSimulator>();
         }
 
         private void EnsureCountdownLabel()
@@ -792,6 +847,7 @@ namespace TapBrawl.Core
 
         public void StopMatch()
         {
+            _botSimulator?.StopSimulation();
             StopChainDischargeRoutineIfRunning();
             if (_countdownRoutine != null) { StopCoroutine(_countdownRoutine); _countdownRoutine = null; }
             if (_postGameRoutine != null)  { StopCoroutine(_postGameRoutine);  _postGameRoutine  = null; }
@@ -819,6 +875,8 @@ namespace TapBrawl.Core
             while (_pendingOpponentSkills.TryDequeue(out _)) { }
             while (_pendingIncomingPings.TryDequeue(out _)) { }
             while (_pendingLocalPingsSent.TryDequeue(out _)) { }
+            _appliedDebuffs.Clear();
+            _matchStartUnscaled = 0f;
             spawner.Stop();
             for (var i = _active.Count - 1; i >= 0; i--)
                 spawner.Despawn(_active[i]);
@@ -1305,6 +1363,7 @@ namespace TapBrawl.Core
                         return;
                     _resultSceneLoadAttempted = true;
                     IsRunning = false;
+                    _botSimulator?.StopSimulation();
 
                     var myId = AuthContext.Current?.Player.Id ?? System.Guid.Empty;
                     PendingMatchResult.Set(new PendingMatchResultPayload(
@@ -1314,7 +1373,8 @@ namespace TapBrawl.Core
                         _score,
                         _tapCount,
                         _missCount,
-                        _online.DurationSec));
+                        _online.DurationSec,
+                        _appliedDebuffs));
 
                     _postGameRoutine = StartCoroutine(PostGamePhaseRoutine());
                     return;

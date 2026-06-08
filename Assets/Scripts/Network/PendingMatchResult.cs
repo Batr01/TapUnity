@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using TapBrawl.Models;
 
 namespace TapBrawl.Network
 {
@@ -39,6 +41,7 @@ namespace TapBrawl.Network
         public int MyTaps { get; }
         public int MyMisses { get; }
         public int DurationSec { get; }
+        public IReadOnlyList<PlayerDebuffSegment> DebuffsApplied { get; }
 
         public PendingMatchResultPayload(
             Guid matchId,
@@ -47,7 +50,8 @@ namespace TapBrawl.Network
             int myScore,
             int myTaps,
             int myMisses,
-            int durationSec)
+            int durationSec,
+            IReadOnlyList<PlayerDebuffSegment>? debuffsApplied = null)
         {
             MatchId = matchId;
             MyPlayerId = myPlayerId;
@@ -56,6 +60,7 @@ namespace TapBrawl.Network
             MyTaps = myTaps;
             MyMisses = myMisses;
             DurationSec = durationSec;
+            DebuffsApplied = debuffsApplied ?? Array.Empty<PlayerDebuffSegment>();
         }
     }
 }

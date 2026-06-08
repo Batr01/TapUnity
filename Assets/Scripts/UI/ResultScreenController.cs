@@ -115,12 +115,7 @@ namespace TapBrawl.UI
                 }
 
                 SetStatus("Отправка результата…");
-                var body = new SubmitMyMatchStatsBody
-                {
-                    Score  = pending.MyScore,
-                    Taps   = pending.MyTaps,
-                    Misses = pending.MyMisses,
-                };
+                var body = BuildSubmitBody(pending);
 
                 var sub = await api.MatchesSubmitMyStatsAsync(session.AccessToken, pending.MatchId, body, CancellationToken.None);
                 if (!sub.Success || sub.Data == null)
@@ -174,18 +169,31 @@ namespace TapBrawl.UI
                 var session = AuthContext.Current;
                 if (session == null)
                     return;
-                var body = new SubmitMyMatchStatsBody
-                {
-                    Score  = pending.MyScore,
-                    Taps   = pending.MyTaps,
-                    Misses = pending.MyMisses,
-                };
+                var body = BuildSubmitBody(pending);
                 await api.MatchesSubmitMyStatsAsync(session.AccessToken, pending.MatchId, body, CancellationToken.None);
             }
             catch (Exception ex)
             {
                 Debug.LogWarning("[Result] Фоновая отправка статов: " + ex.Message);
             }
+        }
+
+        private static SubmitMyMatchStatsBody BuildSubmitBody(PendingMatchResultPayload pending)
+        {
+            var body = new SubmitMyMatchStatsBody
+            {
+                Score  = pending.MyScore,
+                Taps   = pending.MyTaps,
+                Misses = pending.MyMisses,
+            };
+            if (pending.DebuffsApplied.Count > 0)
+            {
+                body.DebuffsApplied = new System.Collections.Generic.List<PlayerDebuffSegment>();
+                foreach (var d in pending.DebuffsApplied)
+                    body.DebuffsApplied.Add(d);
+            }
+
+            return body;
         }
 
         private void ShowResult(MatchResultResponseDto r, Guid myPlayerId)

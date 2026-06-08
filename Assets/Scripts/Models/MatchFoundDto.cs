@@ -32,5 +32,13 @@ namespace TapBrawl.Models
         [JsonProperty("yourSlot")]
         [JsonPropertyName("yourSlot")]
         public int YourSlot { get; set; } = 1;
+
+        [JsonProperty("hasBotOpponent")]
+        [JsonPropertyName("hasBotOpponent")]
+        public bool HasBotOpponent { get; set; }
+
+        [JsonProperty("botDifficulty")]
+        [JsonPropertyName("botDifficulty")]
+        public string? BotDifficulty { get; set; }
     }
 }

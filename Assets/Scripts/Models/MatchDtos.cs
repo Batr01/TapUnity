@@ -1,15 +1,25 @@
 using System;
+using System.Collections.Generic;
 using Newtonsoft.Json;
 using System.Text.Json.Serialization;
 
 namespace TapBrawl.Models
 {
     [Serializable]
+    public sealed class PlayerDebuffSegment
+    {
+        [JsonProperty("skillType")] [JsonPropertyName("skillType")] public int SkillType { get; set; }
+        [JsonProperty("durationSec")] [JsonPropertyName("durationSec")] public float DurationSec { get; set; }
+        [JsonProperty("startOffsetSec")] [JsonPropertyName("startOffsetSec")] public float StartOffsetSec { get; set; }
+    }
+
+    [Serializable]
     public sealed class SubmitMyMatchStatsBody
     {
         [JsonProperty("score")] public int Score { get; set; }
         [JsonProperty("taps")]  public int Taps  { get; set; }
         [JsonProperty("misses")] public int Misses { get; set; }
+        [JsonProperty("debuffsApplied")] [JsonPropertyName("debuffsApplied")] public List<PlayerDebuffSegment>? DebuffsApplied { get; set; }
     }
 
     public sealed class SubmitMatchStatsResponseDto
