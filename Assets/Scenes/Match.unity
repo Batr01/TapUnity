@@ -243,7 +243,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TapBrawl.Core.MatchController
   spawner: {fileID: 1684882268}
-  durationSec: 75
+  durationSec: 60
   trainingSeed: 42
   scoreLabel: {fileID: 925325818}
   timerLabel: {fileID: 888103744}

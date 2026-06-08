@@ -25,7 +25,7 @@ namespace TapBrawl.Network
             _hasPending = true;
             _matchId = dto.MatchId;
             _seed = NormalizeSeed(dto.Seed);
-            _durationSec = dto.DurationSec > 0 ? dto.DurationSec : 75;
+            _durationSec = dto.DurationSec > 0 ? dto.DurationSec : 60;
             _opponentUsername = string.IsNullOrEmpty(dto.OpponentUsername) ? "?" : dto.OpponentUsername;
             _opponentPlayerId = dto.OpponentPlayerId;
             _yourSlot = dto.YourSlot is 1 or 2 ? dto.YourSlot : 1;

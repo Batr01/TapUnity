@@ -23,7 +23,7 @@ namespace TapBrawl.Core
     public sealed class MatchController : MonoBehaviour
     {
         [SerializeField] private CircleSpawner spawner = null!;
-        [SerializeField] private int durationSec = 75;
+        [SerializeField] private int durationSec = 60;
         [SerializeField] private uint trainingSeed = 42;
         [SerializeField] private TMP_Text? scoreLabel;
         [SerializeField] private TMP_Text? timerLabel;
