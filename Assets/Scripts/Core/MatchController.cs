@@ -259,18 +259,22 @@ namespace TapBrawl.Core
             if (!HasEnoughSkillEnergy(cost))
                 return;
 
-            if (!_onlineMode)
-            {
-                if (!TryConsumeSkillEnergy(cost))
-                    return;
-                var localLvl = PlayerSkillsRuntimeState.GetLevel(skillType);
-                ApplyIncomingOpponentVisualSkill(skillType, localLvl);
-                return;
-            }
-
             var debuffDuration = skillType == MatchSkillIds.OpponentRedDeceptionVisual
                 ? _runtimeRedDeceptionDurationSec
                 : _runtimeSmokeVeilDurationSec;
+
+            if (!_onlineMode || _online.HasBotOpponent)
+            {
+                if (!TryConsumeSkillEnergy(cost))
+                    return;
+                RecordPlayerDebuff(skillType, debuffDuration);
+                if (!_onlineMode)
+                {
+                    var localLvl = PlayerSkillsRuntimeState.GetLevel(skillType);
+                    ApplyIncomingOpponentVisualSkill(skillType, localLvl);
+                }
+                return;
+            }
 
             if (_opponentVisualSkillSendInFlight)
                 return;
@@ -393,7 +397,7 @@ namespace TapBrawl.Core
             if (Time.unscaledTime < _pingSendReadyUnscaled)
                 return;
 
-            if (!_onlineMode)
+            if (!_onlineMode || _online.HasBotOpponent)
             {
                 _pendingLocalPingsSent.Enqueue(pingType);
                 _pingSendReadyUnscaled = Time.unscaledTime + PingCooldownSec;

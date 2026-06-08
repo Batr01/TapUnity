@@ -22,6 +22,7 @@ namespace TapBrawl.UI
         [SerializeField] private string lobbySceneName = "Lobby";
         [SerializeField] private Text? statusText;
         [SerializeField] private Text? headlineText;
+        [SerializeField] private Text? performanceBadgeText;
         [SerializeField] private Text? detailsText;
 
         [Header("Кнопки после матча")]
@@ -63,6 +64,15 @@ namespace TapBrawl.UI
         private void OnDestroy() => StopResultMusic();
 
         private void Start() => _ = RunAsync();
+
+        private void RequestLayoutRebuild() => StartCoroutine(RebuildLayoutNextFrame());
+
+        private static IEnumerator RebuildLayoutNextFrame()
+        {
+            yield return null;
+            var canvas = UnityEngine.Object.FindFirstObjectByType<Canvas>();
+            ResultScreenLayoutApplier.TryRebuildLayout(canvas != null ? canvas.transform : null);
+        }
 
         private async Task RunAsync()
         {
@@ -120,6 +130,13 @@ namespace TapBrawl.UI
                 var sub = await api.MatchesSubmitMyStatsAsync(session.AccessToken, pending.MatchId, body, CancellationToken.None);
                 if (!sub.Success || sub.Data == null)
                 {
+                    if (ApiErrorHelper.IsSuspiciousStats(sub.ErrorBody))
+                    {
+                        ShowCancelledMatch();
+                        SetButtonsVisible(true);
+                        return;
+                    }
+
                     SetStatus($"Ошибка отправки: HTTP {sub.StatusCode} {sub.ErrorBody}");
                     SetButtonsVisible(true);
                     return;
@@ -212,6 +229,17 @@ namespace TapBrawl.UI
                     : (iWon ? "Победа!" : "Поражение");
             }
 
+            if (performanceBadgeText != null)
+            {
+                var badges = MatchPerformanceBadges.Resolve(me, iWon && !sameScore);
+                performanceBadgeText.text = MatchPerformanceBadges.FormatTopBadges(badges);
+                var hasBadges = badges.Count > 0;
+                performanceBadgeText.gameObject.SetActive(hasBadges);
+                var chip = performanceBadgeText.transform.parent;
+                if (chip != null && chip.name == ResultScreenLayoutApplier.BadgeChipName)
+                    chip.gameObject.SetActive(hasBadges);
+            }
+
             if (detailsText != null)
             {
                 var winnerLine = sameScore
@@ -219,19 +247,50 @@ namespace TapBrawl.UI
                     : string.Empty;
                 var myRanking = r.Player1.PlayerId == myPlayerId ? r.Player1Ranking : r.Player2Ranking;
                 var rankingLine = FormatRankingLine(myRanking);
+                var scoreAccent = ResultScreenStyle.ScoreAccentFontSize;
 
                 detailsText.text =
-                    $"Счёт: {me.Username} {me.Score}  —  {opp.Score} {opp.Username}\n" +
+                    $"{me.Username}  <size={scoreAccent}><b>{me.Score} — {opp.Score}</b></size>  {opp.Username}\n" +
                     $"Всего очков (оба): {r.TotalScore}    Разница: {r.ScoreDifference}\n" +
                     $"Длительность: {r.DurationSec} с{winnerLine}" +
                     rankingLine +
-                    $"── Ты ({me.Username}) ──\n" +
+                    $"\n<b>Ты ({me.Username})</b>\n" +
                     $"Тапы: {me.Taps}    Промахи: {me.Misses}\n" +
                     $"Точность: {me.AccuracyPercent:0.##}%    Тапов/сек: {me.TapsPerSecond:0.##}\n\n" +
-                    $"── Соперник ({opp.Username}) ──\n" +
+                    $"<b>Соперник ({opp.Username})</b>\n" +
                     $"Тапы: {opp.Taps}    Промахи: {opp.Misses}\n" +
                     $"Точность: {opp.AccuracyPercent:0.##}%    Тапов/сек: {opp.TapsPerSecond:0.##}";
+                detailsText.supportRichText = true;
             }
+
+            RequestLayoutRebuild();
+        }
+
+        private void ShowCancelledMatch()
+        {
+            SetStatus(string.Empty);
+
+            if (headlineText != null)
+                headlineText.text = "Матч аннулирован";
+
+            if (performanceBadgeText != null)
+            {
+                performanceBadgeText.text = string.Empty;
+                performanceBadgeText.gameObject.SetActive(false);
+                var chip = performanceBadgeText.transform.parent;
+                if (chip != null && chip.name == ResultScreenLayoutApplier.BadgeChipName)
+                    chip.gameObject.SetActive(false);
+            }
+
+            if (detailsText != null)
+            {
+                detailsText.text =
+                    "Обнаружена подозрительная активность (слишком высокая скорость тапов при высокой точности).\n" +
+                    "Результат не засчитан. Играй честно — без автокликеров.";
+                detailsText.supportRichText = true;
+            }
+
+            RequestLayoutRebuild();
         }
 
         private static string FormatRankingLine(MatchPlayerRankingDeltaDto? ranking)
