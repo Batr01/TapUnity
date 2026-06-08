@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using TapBrawl.Core.Enums;
 
 namespace TapBrawl.Core.Skills
 {
@@ -7,13 +8,18 @@ namespace TapBrawl.Core.Skills
         public static string GetDisplayName(int skillId) =>
             skillId switch
             {
-                SkillBalance.GiantCirclesSkillId => "Крупные круги",
+                SkillBalance.GiantCirclesSkillId => "Большие круги",
                 SkillBalance.RedDeceptionSkillId => "Красная пелена",
                 SkillBalance.SmokeVeilSkillId => "Дымовая завеса",
                 SkillBalance.OverheatSkillId => "Перегрев",
-                SkillBalance.ChainDischargeSkillId => "Цепная реакция",
+                SkillBalance.ChainDischargeSkillId => "Зиппер",
                 _ => $"Скилл #{skillId}",
             };
+
+        public static SkillRarity GetRarity(int skillId) => SkillBalance.RarityForSkillId(skillId);
+
+        public static string GetRarityDisplayName(int skillId) =>
+            SkillBalance.RarityDisplayName(GetRarity(skillId));
 
         public static string GetShortHint(int skillId) =>
             skillId switch

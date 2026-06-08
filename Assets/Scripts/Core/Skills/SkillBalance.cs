@@ -1,3 +1,4 @@
+using TapBrawl.Core.Enums;
 using UnityEngine;
 
 namespace TapBrawl.Core.Skills
@@ -20,6 +21,27 @@ namespace TapBrawl.Core.Skills
         public static bool IsKnownSkillId(int skillId) =>
             skillId is GiantCirclesSkillId or RedDeceptionSkillId or SmokeVeilSkillId or OverheatSkillId
                 or ChainDischargeSkillId;
+
+        public static SkillRarity RarityForSkillId(int skillId) =>
+            skillId switch
+            {
+                GiantCirclesSkillId => SkillRarity.Common,
+                RedDeceptionSkillId => SkillRarity.Epic,
+                SmokeVeilSkillId => SkillRarity.Legendary,
+                OverheatSkillId => SkillRarity.Legendary,
+                ChainDischargeSkillId => SkillRarity.Epic,
+                _ => SkillRarity.Common,
+            };
+
+        public static string RarityDisplayName(SkillRarity rarity) =>
+            rarity switch
+            {
+                SkillRarity.Common => "Обычный",
+                SkillRarity.Rare => "Редкий",
+                SkillRarity.Epic => "Эпический",
+                SkillRarity.Legendary => "Легендарный",
+                _ => string.Empty,
+            };
 
         public static int ClampLevel(int level) => Mathf.Clamp(level, MinLevel, MaxLevel);
 

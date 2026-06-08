@@ -68,7 +68,7 @@ namespace TapBrawl.UI
                 BindAvatarPicker(s);
                 RenderIdentityBlock(s);
                 RenderCurrencyBlock(s);
-                RenderProgressBlock(s.RankPoints);
+                RenderProgressBlock(s);
             }
             RenderFallbackStats();
             SetStatus(string.Empty);
@@ -193,7 +193,7 @@ namespace TapBrawl.UI
                 BindAvatarPicker(session.Player);
                 RenderIdentityBlock(session.Player);
                 RenderCurrencyBlock(session.Player);
-                RenderProgressBlock(session.Player.RankPoints);
+                RenderProgressBlock(session.Player);
                 SetStatus("Сохранено.");
                 _ = RefreshExtendedProfileAsync();
             }
@@ -226,7 +226,7 @@ namespace TapBrawl.UI
                     BindAvatarPicker(session.Player);
                     RenderIdentityBlock(session.Player);
                     RenderCurrencyBlock(session.Player);
-                    RenderProgressBlock(session.Player.RankPoints);
+                    RenderProgressBlock(session.Player);
                 }
 
                 var stats = await api.PlayersStatsAsync(session.Player.Id, CancellationToken.None).ConfigureAwait(true);
@@ -278,19 +278,20 @@ namespace TapBrawl.UI
                 equivalentText.text = CurrencyDisplay.FormatEquivalent(player.Gems);
         }
 
-        private void RenderProgressBlock(int rankPoints)
+        private void RenderProgressBlock(PlayerProfileDto player)
         {
-            var clamped = Mathf.Max(0, rankPoints);
-            const int pointsPerLevel = 1000;
-            var level = clamped / pointsPerLevel + 1;
-            var xpInLevel = clamped % pointsPerLevel;
-            var xpNeed = pointsPerLevel;
-            var normalized = xpNeed <= 0 ? 0f : (float)xpInLevel / xpNeed;
+            var rankPoints = Mathf.Max(0, player.RankPoints);
+            var pointsInDivision = Mathf.Max(0, player.PointsInDivision);
+            var pointsToNext = Mathf.Max(1, player.PointsToNextDivision);
+            var divisionSize = pointsInDivision + pointsToNext;
+            var normalized = divisionSize <= 0 ? 0f : (float)pointsInDivision / divisionSize;
 
             if (levelText != null)
-                levelText.text = $"Уровень: {level}";
+                levelText.text = player.RankLabel;
             if (xpText != null)
-                xpText.text = $"XP: {xpInLevel}/{xpNeed}";
+                xpText.text = pointsToNext <= 0
+                    ? $"RP: {rankPoints}"
+                    : $"RP: {pointsInDivision}/{divisionSize}";
             if (xpFillImage != null)
                 xpFillImage.fillAmount = Mathf.Clamp01(normalized);
             if (xpSlider != null)

@@ -12,6 +12,11 @@ namespace TapBrawl.Models
         [JsonProperty("gems")] public int Gems { get; set; }
         [JsonProperty("rankPoints")] public int RankPoints { get; set; }
         [JsonProperty("tier")] public string Tier { get; set; } = string.Empty;
+        [JsonProperty("division")] public string? Division { get; set; }
+        [JsonProperty("pointsInDivision")] public int PointsInDivision { get; set; }
+        [JsonProperty("pointsToNextDivision")] public int PointsToNextDivision { get; set; }
+
+        public string RankLabel => string.IsNullOrEmpty(Division) ? Tier : $"{Tier} {Division}";
         [JsonProperty("avatarId")] public string AvatarId { get; set; } = "default";
         [JsonProperty("unlockedAvatarIds")] public string[] UnlockedAvatarIds { get; set; } = System.Array.Empty<string>();
     }

@@ -29,6 +29,21 @@ namespace TapBrawl.Models
         [JsonProperty("player2")]         [JsonPropertyName("player2")]         public MatchPlayerResultDto Player2 { get; set; } = new();
         [JsonProperty("scoreDifference")] [JsonPropertyName("scoreDifference")] public int ScoreDifference { get; set; }
         [JsonProperty("durationSec")]     [JsonPropertyName("durationSec")]     public int DurationSec { get; set; }
+        [JsonProperty("player1Ranking")]  [JsonPropertyName("player1Ranking")]  public MatchPlayerRankingDeltaDto? Player1Ranking { get; set; }
+        [JsonProperty("player2Ranking")]  [JsonPropertyName("player2Ranking")]  public MatchPlayerRankingDeltaDto? Player2Ranking { get; set; }
+    }
+
+    [Serializable]
+    public sealed class MatchPlayerRankingDeltaDto
+    {
+        [JsonProperty("oldRankPoints")]   [JsonPropertyName("oldRankPoints")]   public int OldRankPoints { get; set; }
+        [JsonProperty("newRankPoints")]   [JsonPropertyName("newRankPoints")]   public int NewRankPoints { get; set; }
+        [JsonProperty("delta")]         [JsonPropertyName("delta")]         public int Delta { get; set; }
+        [JsonProperty("tier")]          [JsonPropertyName("tier")]          public string Tier { get; set; } = string.Empty;
+        [JsonProperty("division")]      [JsonPropertyName("division")]      public string? Division { get; set; }
+        [JsonProperty("winStreakBonus")] [JsonPropertyName("winStreakBonus")] public int WinStreakBonus { get; set; }
+
+        public string RankLabel => string.IsNullOrEmpty(Division) ? Tier : $"{Tier} {Division}";
     }
 
     [Serializable]

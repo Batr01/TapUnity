@@ -281,9 +281,9 @@ namespace TapBrawl.UI
             if (gemsText != null)
                 gemsText.text = CurrencyDisplay.FormatGems(p.Gems);
             if (rankText != null)
-                rankText.text = $"Рейтинг: {p.RankPoints}";
+                rankText.text = $"Рейтинг: {p.RankPoints} RP";
             if (tierText != null)
-                tierText.text = $"Тир: {p.Tier}";
+                tierText.text = p.RankLabel;
         }
 
         private void OnDestroy()

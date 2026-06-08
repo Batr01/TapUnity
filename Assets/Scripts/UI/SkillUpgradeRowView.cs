@@ -8,6 +8,7 @@ namespace TapBrawl.UI
     public sealed class SkillUpgradeRowView : MonoBehaviour
     {
         private const string InfoColumnName = "Info Column";
+        private const string RarityTextName = "Rarity Text";
         private const string LevelTextName = "Level Text";
         private const string UpgradeCostTextName = "Upgrade Cost Text";
 
@@ -15,6 +16,7 @@ namespace TapBrawl.UI
         [SerializeField] private int skillId = 1;
         [SerializeField] private SkillCatalog? skillCatalog;
         [SerializeField] private Text? nameText;
+        [SerializeField] private Text? rarityText;
         [SerializeField] private Text? levelText;
         [SerializeField] private Text? descriptionText;
         [SerializeField] private Text? upgradeCostText;
@@ -42,6 +44,13 @@ namespace TapBrawl.UI
 
             if (nameText != null)
                 nameText.text = skillCatalog != null ? skillCatalog.GetDisplayName(skillId) : SkillDefinitions.GetDisplayName(skillId);
+            if (rarityText != null)
+            {
+                var rarity = SkillDefinitions.GetRarity(skillId);
+                rarityText.text = SkillDefinitions.GetRarityDisplayName(skillId);
+                rarityText.color = SkillRarityStyle.GetTextColor(rarity);
+            }
+
             if (levelText != null)
                 levelText.text = $"Уровень: {level}/{SkillBalance.MaxLevel}";
             if (descriptionText != null)
@@ -86,6 +95,8 @@ namespace TapBrawl.UI
         {
             if (nameText == null)
                 nameText = FindText(InfoColumnName + "/Name Text", "Name Text");
+            if (rarityText == null)
+                rarityText = FindText(InfoColumnName + "/" + RarityTextName, RarityTextName);
             if (levelText == null)
                 levelText = FindText(InfoColumnName + "/" + LevelTextName, LevelTextName);
             if (upgradeCostText == null)
@@ -158,6 +169,12 @@ namespace TapBrawl.UI
                 nameTr.SetParent(infoColumn, false);
                 nameText = nameTr.GetComponent<Text>();
                 StyleNameText(nameText);
+            }
+
+            if (rarityText == null)
+            {
+                rarityText = EnsureChildText(infoColumn, RarityTextName, 18, SkillRarityStyle.GetTextColor(SkillDefinitions.GetRarity(skillId)), 20f);
+                rarityText.text = SkillDefinitions.GetRarityDisplayName(skillId);
             }
 
             if (levelText == null)

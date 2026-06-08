@@ -68,6 +68,9 @@ namespace TapBrawl.Models
         [JsonProperty("username")] public string Username { get; set; } = string.Empty;
         [JsonProperty("rankPoints")] public int RankPoints { get; set; }
         [JsonProperty("tier")] public string Tier { get; set; } = string.Empty;
+        [JsonProperty("division")] public string? Division { get; set; }
+        [JsonProperty("pointsInDivision")] public int PointsInDivision { get; set; }
+        [JsonProperty("pointsToNextDivision")] public int PointsToNextDivision { get; set; }
         [JsonProperty("wins")] public int Wins { get; set; }
         [JsonProperty("losses")] public int Losses { get; set; }
         [JsonProperty("totalTaps")] public long TotalTaps { get; set; }

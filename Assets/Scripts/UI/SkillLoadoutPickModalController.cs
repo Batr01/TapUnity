@@ -113,15 +113,17 @@ namespace TapBrawl.UI
             foreach (var skillId in SkillBalance.KnownSkillIds)
             {
                 var blocked = takenElsewhere.Contains(skillId) && skillId != currentId;
-                var title = ResolveDisplayName(skillId);
+                var title = $"{ResolveDisplayName(skillId)}\n{SkillDefinitions.GetRarityDisplayName(skillId)}";
                 if (blocked)
                     title += "\n(занят в другом слоте)";
 
                 var icon = skillCatalog != null ? skillCatalog.GetIcon(skillId) : null;
+                var rarity = SkillDefinitions.GetRarity(skillId);
                 var capturedId = skillId;
                 CreateSkillTile(
                     icon,
                     title,
+                    rarity,
                     !blocked,
                     () =>
                     {
@@ -145,7 +147,12 @@ namespace TapBrawl.UI
             _spawnedTiles.Clear();
         }
 
-        private void CreateSkillTile(Sprite? icon, string title, bool interactable, UnityAction onChosen)
+        private void CreateSkillTile(
+            Sprite? icon,
+            string title,
+            TapBrawl.Core.Enums.SkillRarity rarity,
+            bool interactable,
+            UnityAction onChosen)
         {
             var btn = Instantiate(skillOptionTilePrefab, skillRowsParent);
             btn.gameObject.SetActive(true);
@@ -153,7 +160,9 @@ namespace TapBrawl.UI
             btn.onClick.RemoveAllListeners();
             btn.onClick.AddListener(onChosen);
 
-            var bgColor = interactable ? tileEnabledBackgroundColor : tileDisabledBackgroundColor;
+            var bgColor = interactable
+                ? SkillRarityStyle.GetTileBackgroundColor(rarity, true)
+                : tileDisabledBackgroundColor;
             var txtColor = interactable ? tileEnabledTitleColor : tileDisabledTitleColor;
 
             var tileView = btn.GetComponent<SkillLoadoutPickTileView>();

@@ -209,11 +209,14 @@ namespace TapBrawl.UI
                 var winnerLine = sameScore
                     ? $"\nПри равном счёте зачтена победа: {(r.Player1.IsWinner ? r.Player1.Username : r.Player2.Username)}\n"
                     : string.Empty;
+                var myRanking = r.Player1.PlayerId == myPlayerId ? r.Player1Ranking : r.Player2Ranking;
+                var rankingLine = FormatRankingLine(myRanking);
 
                 detailsText.text =
                     $"Счёт: {me.Username} {me.Score}  —  {opp.Score} {opp.Username}\n" +
                     $"Всего очков (оба): {r.TotalScore}    Разница: {r.ScoreDifference}\n" +
-                    $"Длительность: {r.DurationSec} с{winnerLine}\n" +
+                    $"Длительность: {r.DurationSec} с{winnerLine}" +
+                    rankingLine +
                     $"── Ты ({me.Username}) ──\n" +
                     $"Тапы: {me.Taps}    Промахи: {me.Misses}\n" +
                     $"Точность: {me.AccuracyPercent:0.##}%    Тапов/сек: {me.TapsPerSecond:0.##}\n\n" +
@@ -221,6 +224,19 @@ namespace TapBrawl.UI
                     $"Тапы: {opp.Taps}    Промахи: {opp.Misses}\n" +
                     $"Точность: {opp.AccuracyPercent:0.##}%    Тапов/сек: {opp.TapsPerSecond:0.##}";
             }
+        }
+
+        private static string FormatRankingLine(MatchPlayerRankingDeltaDto? ranking)
+        {
+            if (ranking == null || ranking.Delta == 0 && ranking.NewRankPoints == 0)
+                return string.Empty;
+
+            var sign = ranking.Delta > 0 ? "+" : string.Empty;
+            var streak = ranking.WinStreakBonus > 0
+                ? $" (бонус серии +{ranking.WinStreakBonus})"
+                : string.Empty;
+
+            return $"\nРейтинг: {sign}{ranking.Delta} RP → {ranking.NewRankPoints} ({ranking.RankLabel}){streak}\n";
         }
 
         private void SetButtonsVisible(bool visible)

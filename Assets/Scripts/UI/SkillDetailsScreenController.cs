@@ -23,6 +23,7 @@ namespace TapBrawl.UI
 
         [Header("Тексты")]
         [SerializeField] private Text? titleText;
+        [SerializeField] private Text? rarityText;
         [SerializeField] private Text? levelText;
         [SerializeField] private Text? shortDescriptionText;
         [SerializeField] private Text? statsText;
@@ -65,6 +66,13 @@ namespace TapBrawl.UI
 
             if (titleText != null)
                 titleText.text = skillCatalog != null ? skillCatalog.GetDisplayName(skillId) : SkillDefinitions.GetDisplayName(skillId);
+            if (rarityText != null)
+            {
+                var rarity = SkillDefinitions.GetRarity(skillId);
+                rarityText.text = SkillDefinitions.GetRarityDisplayName(skillId);
+                rarityText.color = SkillRarityStyle.GetTextColor(rarity);
+            }
+
             if (levelText != null)
                 levelText.text = $"Текущий уровень: {level}/{SkillBalance.MaxLevel}";
             if (shortDescriptionText != null)
