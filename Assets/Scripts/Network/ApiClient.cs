@@ -86,6 +86,15 @@ namespace TapBrawl.Network
         public Task<ApiResult<PlayerPublicStatsDto>> PlayersStatsAsync(Guid playerId, CancellationToken ct = default) =>
             GetJsonAsync<PlayerPublicStatsDto>($"/api/v1/players/{playerId:D}/stats", null, ct);
 
+        public Task<ApiResult<List<RecentMatchDto>>> PlayersRecentMatchesAsync(
+            string bearer,
+            int limit = 5,
+            CancellationToken ct = default) =>
+            GetJsonAsync<List<RecentMatchDto>>(
+                $"/api/v1/players/me/matches/recent?limit={limit}",
+                bearer,
+                ct);
+
         public Task<ApiResult<AuthResponseDto>> AuthRegisterAsync(string deviceId, string? username, CancellationToken ct = default) =>
             PostJsonAsync<AuthResponseDto>(
                 "/api/v1/auth/register",

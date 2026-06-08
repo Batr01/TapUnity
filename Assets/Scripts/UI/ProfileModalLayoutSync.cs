@@ -14,6 +14,7 @@ namespace TapBrawl.UI
             "BlockCoint",
             "BlockLevel",
             "BlockStatistic",
+            "BlockMatchHistory",
             "BlockStatus",
         };
 
@@ -23,7 +24,8 @@ namespace TapBrawl.UI
             ("BlockRanked", 160f),
             ("BlockCoint", 132f),
             ("BlockLevel", 140f),
-            ("BlockStatistic", 240f),
+            ("BlockStatistic", 280f),
+            ("BlockMatchHistory", 132f),
             ("BlockStatus", 64f),
         };
 
@@ -44,19 +46,32 @@ namespace TapBrawl.UI
         private void EnsureBackdrop()
         {
             var backdrop = transform.Find("Backdrop");
-            if (backdrop != null)
-                return;
+            if (backdrop == null)
+            {
+                var go = new GameObject("Backdrop", typeof(RectTransform), typeof(Image), typeof(Button));
+                go.transform.SetParent(transform, false);
+                go.transform.SetAsFirstSibling();
+                StretchFull(go.GetComponent<RectTransform>());
+                backdrop = go.transform;
+            }
 
-            var go = new GameObject("Backdrop", typeof(RectTransform), typeof(Image), typeof(Button));
-            go.transform.SetParent(transform, false);
-            go.transform.SetAsFirstSibling();
-            StretchFull(go.GetComponent<RectTransform>());
-            var img = go.GetComponent<Image>();
+            WireBackdropClose(backdrop);
+        }
+
+        private static void WireBackdropClose(Transform backdrop)
+        {
+            var img = backdrop.GetComponent<Image>();
+            if (img == null)
+                img = backdrop.gameObject.AddComponent<Image>();
             UiModalStyle.ApplyBackdrop(img);
-            var btn = go.GetComponent<Button>();
+
+            var btn = backdrop.GetComponent<Button>();
+            if (btn == null)
+                btn = backdrop.gameObject.AddComponent<Button>();
             btn.transition = Selectable.Transition.None;
             btn.targetGraphic = img;
 
+            btn.onClick.RemoveAllListeners();
             var toggle = Object.FindFirstObjectByType<ProfilePanelToggle>();
             if (toggle != null)
                 btn.onClick.AddListener(toggle.Hide);
@@ -225,6 +240,7 @@ namespace TapBrawl.UI
             fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
             MoveSaveButtonToHeader(content, header);
+            EnsureBlockMatchHistory(content);
 
             var blockTitle = content.Find("BlockTitle");
             if (blockTitle != null)
@@ -255,6 +271,78 @@ namespace TapBrawl.UI
                 if (scrollRect != null)
                     LayoutRebuilder.ForceRebuildLayoutImmediate(scrollRect.viewport);
             }
+        }
+
+        private static void EnsureBlockMatchHistory(Transform content)
+        {
+            var block = content.Find("BlockMatchHistory");
+            if (block == null)
+            {
+                var go = new GameObject(
+                    "BlockMatchHistory",
+                    typeof(RectTransform),
+                    typeof(Image),
+                    typeof(VerticalLayoutGroup));
+                go.transform.SetParent(content, false);
+                block = go.transform;
+                var img = go.GetComponent<Image>();
+                img.color = UiModalStyle.ProfileBlockColor;
+                img.raycastTarget = true;
+            }
+
+            if (block.Find("MatchHistoryTitle") == null)
+            {
+                var titleGo = new GameObject("MatchHistoryTitle", typeof(RectTransform), typeof(Text), typeof(LayoutElement));
+                titleGo.transform.SetParent(block, false);
+                var title = titleGo.GetComponent<Text>();
+                title.text = "Последние игры";
+                title.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+                title.fontSize = UiModalStyle.ProfileBodyFontSize;
+                title.fontStyle = FontStyle.Bold;
+                title.color = UiModalStyle.ProfilePrimaryTextColor;
+                title.alignment = TextAnchor.MiddleLeft;
+                title.raycastTarget = false;
+                var titleLe = titleGo.GetComponent<LayoutElement>();
+                titleLe.preferredHeight = 36f;
+                titleLe.minHeight = 36f;
+            }
+
+            var container = block.Find("MatchHistoryContainer");
+            if (container == null)
+            {
+                var containerGo = new GameObject(
+                    "MatchHistoryContainer",
+                    typeof(RectTransform),
+                    typeof(HorizontalLayoutGroup),
+                    typeof(LayoutElement));
+                containerGo.transform.SetParent(block, false);
+                container = containerGo.transform;
+            }
+
+            ConfigureMatchHistoryContainer(container);
+        }
+
+        private static void ConfigureMatchHistoryContainer(Transform container)
+        {
+            if (container.TryGetComponent<VerticalLayoutGroup>(out var oldVlg))
+                Destroy(oldVlg);
+
+            var hlg = container.GetComponent<HorizontalLayoutGroup>();
+            if (hlg == null)
+                hlg = container.gameObject.AddComponent<HorizontalLayoutGroup>();
+            hlg.spacing = 12f;
+            hlg.childAlignment = TextAnchor.MiddleLeft;
+            hlg.childControlWidth = false;
+            hlg.childControlHeight = false;
+            hlg.childForceExpandWidth = false;
+            hlg.childForceExpandHeight = false;
+
+            var containerLe = container.GetComponent<LayoutElement>();
+            if (containerLe == null)
+                containerLe = container.gameObject.AddComponent<LayoutElement>();
+            containerLe.flexibleHeight = 1f;
+            containerLe.minHeight = 52f;
+            containerLe.preferredHeight = 52f;
         }
 
         private static void MoveSaveButtonToHeader(Transform content, Transform header)

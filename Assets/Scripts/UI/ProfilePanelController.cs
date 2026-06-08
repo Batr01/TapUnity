@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using TapBrawl.Models;
@@ -14,6 +15,13 @@ namespace TapBrawl.UI
     /// </summary>
     public sealed class ProfilePanelController : MonoBehaviour
     {
+        private const int RecentMatchDotCount = 5;
+        private const float RecentMatchDotSize = 44f;
+        private static readonly Color RecentMatchWinColor = new(0.28f, 0.78f, 0.38f, 1f);
+        private static readonly Color RecentMatchLossColor = new(0.9f, 0.28f, 0.28f, 1f);
+        private static readonly Color RecentMatchEmptyColor = new(0.35f, 0.35f, 0.4f, 0.35f);
+        private static Sprite? _recentMatchDotSprite;
+
         [SerializeField] private BackendConfig backendConfig = null!;
         [SerializeField] private string authSceneName = "Auth";
         [SerializeField] private InputField? usernameInput;
@@ -37,6 +45,10 @@ namespace TapBrawl.UI
         [SerializeField] private Text? matchesText;
         [SerializeField] private Text? recordText;
         [SerializeField] private Text? accuracyText;
+        [SerializeField] private Text? avgReactionText;
+        [SerializeField] private Text? totalTapsText;
+        [Header("История матчей")]
+        [SerializeField] private Transform? matchHistoryContainer;
         [Header("Профиль: мини-карточка достижений")]
         [SerializeField] private Text? achievementsMiniText;
         [SerializeField] private Text? statusText;
@@ -49,6 +61,8 @@ namespace TapBrawl.UI
                 avatarPicker = gameObject.AddComponent<ProfileAvatarPicker>();
 
             TryAutoWireCurrencyTexts();
+            TryAutoWireStatsTexts();
+            TryAutoWireMatchHistoryContainer();
             if (saveButton != null)
                 saveButton.onClick.AddListener(OnSaveClicked);
             if (copyIdButton != null)
@@ -71,6 +85,7 @@ namespace TapBrawl.UI
                 RenderProgressBlock(s);
             }
             RenderFallbackStats();
+            RenderMatchHistory(null);
             SetStatus(string.Empty);
             _ = RefreshExtendedProfileAsync();
         }
@@ -230,10 +245,19 @@ namespace TapBrawl.UI
                 }
 
                 var stats = await api.PlayersStatsAsync(session.Player.Id, CancellationToken.None).ConfigureAwait(true);
-                if (!stats.Success || stats.Data == null)
-                    return;
-                RenderStatsBlock(stats.Data);
-                RenderAchievementsMini(stats.Data);
+                List<RecentMatchDto>? recentMatches = null;
+                var recent = await api.PlayersRecentMatchesAsync(session.AccessToken, 5, CancellationToken.None)
+                    .ConfigureAwait(true);
+                if (recent.Success && recent.Data != null)
+                    recentMatches = recent.Data;
+
+                if (stats.Success && stats.Data != null)
+                {
+                    RenderStatsBlock(stats.Data, recentMatches);
+                    RenderAchievementsMini(stats.Data);
+                }
+
+                RenderMatchHistory(recentMatches);
             }
             catch (Exception ex)
             {
@@ -298,7 +322,64 @@ namespace TapBrawl.UI
                 xpSlider.value = Mathf.Clamp01(normalized);
         }
 
-        private void RenderStatsBlock(PlayerPublicStatsDto stats)
+        private void TryAutoWireStatsTexts()
+        {
+            var block = FindBlock("BlockStatistic");
+            if (block == null)
+                return;
+
+            EnsureStatsText(block, "AvgReactionText", ref avgReactionText, "Реакция: --");
+            EnsureStatsText(block, "TotalTapsText", ref totalTapsText, "Всего тапов: --");
+        }
+
+        private void TryAutoWireMatchHistoryContainer()
+        {
+            if (matchHistoryContainer != null)
+                return;
+
+            var block = FindBlock("BlockMatchHistory");
+            matchHistoryContainer = block?.Find("MatchHistoryContainer");
+        }
+
+        private Transform? FindBlock(string blockName)
+        {
+            foreach (var t in GetComponentsInChildren<Transform>(true))
+            {
+                if (t.name == blockName)
+                    return t;
+            }
+
+            return null;
+        }
+
+        private static void EnsureStatsText(Transform block, string name, ref Text? field, string placeholder)
+        {
+            if (field != null)
+                return;
+
+            var existing = block.Find(name);
+            if (existing != null)
+            {
+                field = existing.GetComponent<Text>();
+                return;
+            }
+
+            var go = new GameObject(name, typeof(RectTransform), typeof(Text), typeof(LayoutElement));
+            go.transform.SetParent(block, false);
+            var text = go.GetComponent<Text>();
+            text.text = placeholder;
+            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            text.fontSize = 28;
+            text.color = UiModalStyle.ProfileAccentTextColor;
+            text.alignment = TextAnchor.MiddleLeft;
+            text.raycastTarget = false;
+            var le = go.GetComponent<LayoutElement>();
+            le.preferredHeight = 40f;
+            le.minHeight = 40f;
+            field = text;
+        }
+
+        private void RenderStatsBlock(PlayerPublicStatsDto stats, IReadOnlyList<RecentMatchDto>? recentMatches)
         {
             var wins = Mathf.Max(0, stats.Wins);
             var losses = Mathf.Max(0, stats.Losses);
@@ -310,13 +391,137 @@ namespace TapBrawl.UI
             if (matchesText != null)
                 matchesText.text = $"Матчи: {matches} (W {wins} / L {losses})";
             if (recordText != null)
-                recordText.text = $"Рекорд (стрик): {Mathf.Max(0, stats.BestStreak)}";
+                recordText.text = $"Лучший стрик: {Mathf.Max(0, stats.BestStreak)}";
 
-            // Бэкенд пока не отдаёт misses/accuracy для публичного профиля; показываем безопасный fallback.
             if (accuracyText != null)
-                accuracyText.text = stats.TotalTaps > 0
-                    ? $"Точность тапов: н/д (тапов: {stats.TotalTaps})"
-                    : "Точность тапов: н/д";
+            {
+                var avgAccuracy = ComputeAverageAccuracy(recentMatches);
+                accuracyText.text = avgAccuracy.HasValue
+                    ? $"Средняя точность: {avgAccuracy.Value:0.#}%"
+                    : "Средняя точность: н/д";
+            }
+
+            if (avgReactionText != null)
+            {
+                avgReactionText.text = stats.AvgReactionMs.HasValue
+                    ? $"Средняя реакция: {stats.AvgReactionMs.Value:0.#} мс"
+                    : "Средняя реакция: н/д";
+            }
+
+            if (totalTapsText != null)
+                totalTapsText.text = $"Всего тапов: {Mathf.Max(0, stats.TotalTaps)}";
+        }
+
+        private static double? ComputeAverageAccuracy(IReadOnlyList<RecentMatchDto>? recentMatches)
+        {
+            if (recentMatches == null || recentMatches.Count == 0)
+                return null;
+
+            double sum = 0;
+            var count = 0;
+            foreach (var match in recentMatches)
+            {
+                if (match.MyTaps <= 0 && match.MyMisses <= 0)
+                    continue;
+                sum += match.AccuracyPercent;
+                count++;
+            }
+
+            return count <= 0 ? null : sum / count;
+        }
+
+        private void RenderMatchHistory(IReadOnlyList<RecentMatchDto>? matches)
+        {
+            TryAutoWireMatchHistoryContainer();
+            if (matchHistoryContainer == null)
+                return;
+
+            for (var i = matchHistoryContainer.childCount - 1; i >= 0; i--)
+                Destroy(matchHistoryContainer.GetChild(i).gameObject);
+
+            var count = matches?.Count ?? 0;
+            var visibleStart = Mathf.Max(0, RecentMatchDotCount - count);
+            for (var slot = 0; slot < RecentMatchDotCount; slot++)
+            {
+                RecentMatchDto? match = null;
+                if (slot >= visibleStart && count > 0)
+                {
+                    var matchIndex = count - 1 - (slot - visibleStart);
+                    if (matchIndex >= 0 && matchIndex < count)
+                        match = matches![matchIndex];
+                }
+
+                CreateMatchHistoryDot(slot, match);
+            }
+        }
+
+        private void CreateMatchHistoryDot(int slot, RecentMatchDto? match)
+        {
+            if (matchHistoryContainer == null)
+                return;
+
+            var go = new GameObject($"MatchDot_{slot}", typeof(RectTransform), typeof(Image), typeof(LayoutElement));
+            go.transform.SetParent(matchHistoryContainer, false);
+
+            var image = go.GetComponent<Image>();
+            image.sprite = GetRecentMatchDotSprite();
+            image.color = match == null
+                ? RecentMatchEmptyColor
+                : match.IsWinner
+                    ? RecentMatchWinColor
+                    : RecentMatchLossColor;
+            image.raycastTarget = false;
+
+            var le = go.GetComponent<LayoutElement>();
+            le.preferredWidth = RecentMatchDotSize;
+            le.preferredHeight = RecentMatchDotSize;
+            le.minWidth = RecentMatchDotSize;
+            le.minHeight = RecentMatchDotSize;
+            le.flexibleWidth = 0f;
+            le.flexibleHeight = 0f;
+        }
+
+        private static Sprite GetRecentMatchDotSprite()
+        {
+            if (_recentMatchDotSprite != null)
+                return _recentMatchDotSprite;
+
+            const int size = 64;
+            var tex = new Texture2D(size, size, TextureFormat.ARGB32, false);
+            tex.wrapMode = TextureWrapMode.Clamp;
+            tex.filterMode = FilterMode.Bilinear;
+            tex.hideFlags = HideFlags.DontSave;
+
+            var pixels = new Color32[size * size];
+            for (var y = 0; y < size; y++)
+            {
+                var ny = (y + 0.5f) / size * 2f - 1f;
+                for (var x = 0; x < size; x++)
+                {
+                    var nx = (x + 0.5f) / size * 2f - 1f;
+                    var r = Mathf.Sqrt(nx * nx + ny * ny);
+                    var idx = y * size + x;
+                    if (r > 0.48f)
+                    {
+                        pixels[idx] = new Color32(0, 0, 0, 0);
+                        continue;
+                    }
+
+                    var edge = Mathf.SmoothStep(1f, 0f, Mathf.InverseLerp(0.43f, 0.48f, r));
+                    pixels[idx] = new Color32(255, 255, 255, (byte)(edge * 255f));
+                }
+            }
+
+            tex.SetPixels32(pixels);
+            tex.Apply(false, true);
+
+            _recentMatchDotSprite = Sprite.Create(
+                tex,
+                new Rect(0f, 0f, size, size),
+                new Vector2(0.5f, 0.5f),
+                size);
+            _recentMatchDotSprite.hideFlags = HideFlags.HideAndDontSave;
+            return _recentMatchDotSprite;
         }
 
         private void RenderAchievementsMini(PlayerPublicStatsDto stats)
@@ -342,9 +547,13 @@ namespace TapBrawl.UI
             if (matchesText != null)
                 matchesText.text = "Матчи: --";
             if (recordText != null)
-                recordText.text = "Рекорд (стрик): --";
+                recordText.text = "Лучший стрик: --";
             if (accuracyText != null)
-                accuracyText.text = "Точность тапов: --";
+                accuracyText.text = "Средняя точность: --";
+            if (avgReactionText != null)
+                avgReactionText.text = "Средняя реакция: --";
+            if (totalTapsText != null)
+                totalTapsText.text = "Всего тапов: --";
             if (achievementsMiniText != null)
                 achievementsMiniText.text = "Достижения: --";
         }

@@ -26,12 +26,19 @@ namespace TapBrawl.UI
             sync.Apply();
         }
 
-        /// <summary>Открыть панель.</summary>
+        /// <summary>Открыть панель (повторный вызов закрывает).</summary>
         public void Show()
         {
+            if (profilePanelRoot != null && profilePanelRoot.activeSelf)
+            {
+                Hide();
+                return;
+            }
+
             var host = LobbyModalsHost.Instance;
             host?.CloseShop();
             host?.CloseSettings();
+            host?.CloseFriends();
             host?.CloseAllSkillModals();
             SetVisible(true);
         }
